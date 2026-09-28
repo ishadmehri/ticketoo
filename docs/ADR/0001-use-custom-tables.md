@@ -5,7 +5,7 @@
 
 ## Options considered
 
-1. **Custom tables** — dedicated `st_tickets`, `st_messages`, `st_attachments`.
+1. **Custom tables** — dedicated `ticketoo_tickets`, `ticketoo_messages`, `ticketoo_attachments`.
 2. **CPT + comments** — free admin UI, search and media library; guests cannot be post authors, postmeta joins degrade at scale, a custom fast panel fights the default list tables.
 3. **Hybrid (CPT for tickets + custom tables for messages)** — two sources of truth, sync complexity, no clear benefit.
 

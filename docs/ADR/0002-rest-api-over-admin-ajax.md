@@ -5,7 +5,7 @@
 
 ## Options considered
 
-1. **REST API (`/wp-json/support-tickets/v1`)** — single namespace, standard `wp_rest` nonce, JSON error handling, one code path for panel and front end.
+1. **REST API (`/wp-json/ticketoo/v1`)** — single namespace, standard `wp_rest` nonce, JSON error handling, one code path for panel and front end.
 2. **`admin-ajax.php`** — classic, but action-name soup, inconsistent response shapes, duplicated permission handling.
 
 ## Decision

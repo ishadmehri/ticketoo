@@ -1,9 +1,10 @@
-# Design Spec — Support Tickets (WordPress Plugin)
+# Design Spec — Ticketoo (WordPress Plugin)
 
 - **Date:** 2026-09-28
 - **Status:** Approved (design sections 1–6 confirmed by project owner)
-- **Path:** `D:\programming\ticketoo\tiketoo`
-- **Text domain / slug:** `support-tickets`
+- **Path:** `D:\programming\ticketoo\ticketoo`
+- **Slug / text domain / namespace root:** `ticketoo`
+- **Repository:** https://github.com/ishadmehri/ticketoo
 
 ## 1. Intent and success criteria
 
@@ -32,11 +33,33 @@ Data storage options were compared:
 
 **UI/tech stack:** vanilla JavaScript (no framework, no build step), WordPress REST API instead of `admin-ajax.php` (ADR 0002), progressive enhancement on the front end (ADR 0003), Gutenberg block built on `wp.*` globals without a bundler (ADR 0004), Elementor widget loaded only when Elementor is active.
 
+### Naming, namespace and plugin header
+
+- **PHP namespace:** `Ticketoo\` (autoloader maps it to `includes/`), e.g. `Ticketoo\Database\TicketRepository`.
+- **Prefixes:** functions/options/caps `ticketoo_`, CSS/JS handles and classes `ticketoo-`, constants `TICKETOO_`, DB tables `{$wpdb->prefix}ticketoo_*`.
+- **Shortcode:** `[ticketoo]`. **Text domain:** `ticketoo`. **Menu slug / REST namespace:** `ticketoo`, `ticketoo/v1`.
+- **Plugin header (`ticketoo.php`):**
+
+```
+Plugin Name:       Ticketoo
+Plugin URI:        https://github.com/ishadmehri/ticketoo
+Description:       Lightweight and fast support ticket plugin for WordPress.
+Author:            Iman Shadmehri
+Author URI:        https://elinweb.ir
+Version:           0.1.0
+Requires at least: 6.4
+Tested up to:      6.7
+Requires PHP:      8.0
+Text Domain:       ticketoo
+Domain Path:       /languages
+License:           GPL-2.0-or-later
+```
+
 ## 3. File structure
 
 ```
-support-tickets/
-├── support-tickets.php          Entry point: header, constants, activation, includes
+ticketoo/
+├── ticketoo.php          Entry point: header, constants, activation, includes
 ├── uninstall.php                Full cleanup on delete (tables, role, options)
 ├── readme.txt                   WordPress.org readme
 ├── phpcs.xml.dist               PHPCS + WPCS configuration (dev only)
@@ -53,13 +76,13 @@ support-tickets/
 │   ├── Rest/
 │   │   ├── FrontendController.php   create/list/read/reply (user + guest)
 │   │   └── AdminController.php      panel endpoints (capability-gated)
-│   ├── Shortcode/SupportTickets.php `[support_tickets view="list|form|ticket" id=""]`
+│   ├── Shortcode/TicketooShortcode.php `[ticketoo view="list|form|ticket" id=""]`
 │   ├── Guest/TokenAccess.php    guest link verification (hashed token)
 │   ├── Email/Notifier.php       wp_mail wrapper + filterable templates
 │   ├── AutoClose.php            daily WP-Cron sweep
 │   └── Admin/
 │       ├── MenuPage.php         custom panel page (shell + AJAX)
-│       └── Capabilities.php     `st_manage_tickets` cap + `support_agent` role
+│       └── Capabilities.php     `ticketoo_manage_tickets` cap + `ticketoo_agent` role
 ├── assets/
 │   ├── css/ frontend.css  admin.css       (minified, loaded only where needed)
 │   └── js/  frontend.js  admin.js  block.js   (vanilla JS, no bundler)
@@ -73,46 +96,46 @@ support-tickets/
 
 Notes:
 - Every file has a single responsibility and stays short.
-- Theme override: template files resolved via `st_template_path` filter (standard WP template hierarchy style).
+- Theme override: template files resolved via `ticketoo_template_path` filter (standard WP template hierarchy style).
 - No Composer and no build step required for end users.
 
 ## 4. Data model
 
 Three tables with `{$wpdb->prefix}`:
 
-### `st_tickets`
+### `ticketoo_tickets`
 | Column | Type | Notes |
 |---|---|---|
 | `id` | BIGINT UNSIGNED AI | displayed as `#123` |
 | `subject` | VARCHAR(190) | FULLTEXT index for search |
-| `status` | VARCHAR(20) + index | `open`, `pending`, `answered`, `closed` — strings, not ENUM, extendable via `st_statuses` |
+| `status` | VARCHAR(20) + index | `open`, `pending`, `answered`, `closed` — strings, not ENUM, extendable via `ticketoo_statuses` |
 | `user_id` | BIGINT UNSIGNED | `0` for guests |
 | `email` | VARCHAR(160) | guest email + fallback for users |
 | `assigned_to` | BIGINT UNSIGNED NULL | agent user id |
-| `guest_token_hash` | CHAR(64) NULL | SHA-256 of token; raw token only in emailed link |
-| `last_activity_at` | DATETIME | auto-close basis + sorting |
+| `gueticketoo_token_hash` | CHAR(64) NULL | SHA-256 of token; raw token only in emailed link |
+| `laticketoo_activity_at` | DATETIME | auto-close basis + sorting |
 | `created_at` / `updated_at` | DATETIME | |
 
-Indexes: `(status, last_activity_at)`, `user_id`, `email`, `assigned_to`, FULLTEXT(`subject`).
+Indexes: `(status, laticketoo_activity_at)`, `user_id`, `email`, `assigned_to`, FULLTEXT(`subject`).
 
-### `st_messages`
+### `ticketoo_messages`
 `id`, `ticket_id` (index), `user_id`, `email`, `is_agent` TINYINT(1) (`0` user/guest, `1` agent, `2` system message), `content` LONGTEXT + FULLTEXT, `created_at`.
 
-### `st_attachments`
+### `ticketoo_attachments`
 `id`, `message_id` (index), `file_path`, `original_name`, `mime`, `size`, `created_at`.
 
-**Attachments:** stored under `uploads/support-tickets/YYYY/MM/` with a 24-char random filename; downloads only through a permission-checked endpoint (owner / agent / guest-with-token); `.htaccess` deny in the folder. Documented limitation: nginx needs a server-level rule (noted in readme).
+**Attachments:** stored under `uploads/ticketoo/YYYY/MM/` with a 24-char random filename; downloads only through a permission-checked endpoint (owner / agent / guest-with-token); `.htaccess` deny in the folder. Documented limitation: nginx needs a server-level rule (noted in readme).
 
-**Capabilities:** custom cap `st_manage_tickets` (default: administrators only) + new role `support_agent` (that cap + `read`). Users see only their own tickets via `user_id`; guests only with valid `id + token`.
+**Capabilities:** custom cap `ticketoo_manage_tickets` (default: administrators only) + new role `ticketoo_agent` (that cap + `read`). Users see only their own tickets via `user_id`; guests only with valid `id + token`.
 
 ## 5. Front-end flows and REST contract
 
-**One shortcode, three views:** `[support_tickets view="list|form|ticket" id="123"]`.
+**One shortcode, three views:** `[ticketoo view="list|form|ticket" id="123"]`.
 Gutenberg: three blocks whose `render_callback` delegates to the shortcode (single HTML/JS source). Elementor: one widget with `view` and `id` controls, registered only if Elementor is active.
 
 **Progressive enhancement:** list, form and conversation are server-rendered (fast first paint, works without JS); vanilla JS then enhances with AJAX for filters/pagination, posting replies, closing tickets.
 
-**REST — namespace `support-tickets/v1`**, all with `wp_rest` nonce:
+**REST — namespace `ticketoo/v1`**, all with `wp_rest` nonce:
 
 | Method & route | Who | Purpose |
 |---|---|---|
@@ -121,21 +144,21 @@ Gutenberg: three blocks whose `render_callback` delegates to the shortcode (sing
 | `GET /tickets/{id}?token=` | owner / agent / guest+token | ticket + paged messages |
 | `POST /tickets/{id}/messages` (multipart) | same | reply + `files[]` upload |
 | `POST /tickets/{id}/status` | owner: `closed` only; agent: any | status change |
-| `POST /tickets/{id}/assign` | `st_manage_tickets` | assign agent |
+| `POST /tickets/{id}/assign` | `ticketoo_manage_tickets` | assign agent |
 | `GET /attachments/{id}` | permission-checked | secure download |
 
-**Guest flow:** form (name, email, subject, message) → ticket created → email with link `.../?st_ticket=ID&token=RAW` (only hash stored) → same link to view and reply. No email access means no return access (documented in readme).
+**Guest flow:** form (name, email, subject, message) → ticket created → email with link `.../?ticketoo_ticket=ID&token=RAW` (only hash stored) → same link to view and reply. No email access means no return access (documented in readme).
 
-**Guest access model (explicit):** a token grants access to **one specific ticket only**. Guests have no list endpoint and no session state; every guest route (`GET /tickets/{id}`, `POST /tickets/{id}/messages`, `GET /attachments/{id}`) requires the `token` parameter and verifies it with `hash_equals` against `guest_token_hash`. Listing requires an authenticated user or agent.
+**Guest access model (explicit):** a token grants access to **one specific ticket only**. Guests have no list endpoint and no session state; every guest route (`GET /tickets/{id}`, `POST /tickets/{id}/messages`, `GET /attachments/{id}`) requires the `token` parameter and verifies it with `hash_equals` against `gueticketoo_token_hash`. Listing requires an authenticated user or agent.
 
 **User flow:** log in → own ticket list → create / reply / close.
 
 ## 6. Custom wp-admin panel
 
-- Top-level menu `support-tickets` (capability `st_manage_tickets`), submenu **Settings**.
-- Page = static shell + AJAX data (no `WP_List_Table`): status tabs, search box, agent filter, new-ticket counter, paginated ticket table (number, subject, customer, agent, status, last activity).
+- Top-level menu `ticketoo` (capability `ticketoo_manage_tickets`), submenu **Settings**.
+- Page = static shell + AJAX data (no `WP_Liticketoo_Table`): status tabs, search box, agent filter, new-ticket counter, paginated ticket table (number, subject, customer, agent, status, last activity).
 - Detail view opens in-page: conversation (user left / support right), reply box with attachments, status buttons, assign select, attachment download links.
-- Plugin CSS/JS enqueued only on this screen. Counter refreshed on load and then every 60 seconds (interval option `st_counter_refresh_seconds`, `0` disables polling).
+- Plugin CSS/JS enqueued only on this screen. Counter refreshed on load and then every 60 seconds (interval option `ticketoo_counter_refresh_seconds`, `0` disables polling).
 - Reuses the same REST endpoints with `scope=all` — one code path.
 - **Settings (base):** auto-close days (0 = off), attachment max size/types, sender name/address, enable/disable guest ticket creation.
 
@@ -145,42 +168,42 @@ Gutenberg: three blocks whose `render_callback` delegates to the shortcode (sing
 
 | Event | Recipients | Content |
 |---|---|---|
-| New ticket | all `st_manage_tickets` holders | number, subject, excerpt, direct link |
+| New ticket | all `ticketoo_manage_tickets` holders | number, subject, excerpt, direct link |
 | Agent reply | ticket owner's email | view/reply link (token link for guests) |
 | User/guest reply | assigned agent (or all agents if unassigned) | direct link |
 | Auto-closed | owner | "closed — reply to reopen" |
 
-Template `templates/email/default.php` with `{{vars}}`; filters `st_email_subject`, `st_email_body`, `st_email_headers`; action `st_before_send_email`; guard against sending to the replier themselves; `st_defer_email` hook for future queueing.
+Template `templates/email/default.php` with `{{vars}}`; filters `ticketoo_email_subject`, `ticketoo_email_body`, `ticketoo_email_headers`; action `ticketoo_before_send_email`; guard against sending to the replier themselves; `ticketoo_defer_email` hook for future queueing.
 
 **Auto-close (WP-Cron):**
-- Daily event `st_auto_close_sweep`, registered on activation and re-checked with `wp_next_scheduled`.
-- Query: `status IN ('open','pending')` and `last_activity_at < NOW() - N days`.
-- Before closing: `st_auto_close_ticket` filter (veto allowed) → status `closed` + system message (`is_agent=2`) in thread + email to owner.
-- `st_auto_close_days` option, default 14, `0` disables. New activity updates `last_activity_at` and restarts the window.
+- Daily event `ticketoo_auto_close_sweep`, registered on activation and re-checked with `wp_next_scheduled`.
+- Query: `status IN ('open','pending')` and `laticketoo_activity_at < NOW() - N days`.
+- Before closing: `ticketoo_auto_close_ticket` filter (veto allowed) → status `closed` + system message (`is_agent=2`) in thread + email to owner.
+- `ticketoo_auto_close_days` option, default 14, `0` disables. New activity updates `laticketoo_activity_at` and restarts the window.
 - Documented caveat: WP-Cron runs on visits; real cron recommended in readme.
 
-**Close by user:** close button for the owner (while open); agents can reopen. Action `st_ticket_status_changed` after every change.
+**Close by user:** close button for the owner (while open); agents can reopen. Action `ticketoo_ticket_status_changed` after every change.
 
 ## 8. Security
 
 - Explicit `permission_callback` on every route.
-- `wp_rest` nonce + server-side `current_user_can('st_manage_tickets')` for `scope=all`; ownership check (`user_id`) or `hash_equals` on `guest_token_hash` otherwise.
+- `wp_rest` nonce + server-side `current_user_can('ticketoo_manage_tickets')` for `scope=all`; ownership check (`user_id`) or `hash_equals` on `gueticketoo_token_hash` otherwise.
 - Input: `sanitize_text_field`, `sanitize_email`, `wp_kses_post` for message bodies; output: `esc_html` / `esc_url` everywhere.
 - Uploads: `wp_check_filetype_and_ext`, size/type limits from settings, random filename, outside the media library, `.htaccess` deny, `realpath` guard against path traversal on download.
 - All SQL through `$wpdb->prepare`; no `eval`, no user-controlled includes.
 
 ## 9. Standards and quality
 
-- **WPCS** enforced by PHP_CodeSniffer (`phpcs.xml.dist`); prefixes `st_` / `st-`.
+- **WPCS** enforced by PHP_CodeSniffer (`phpcs.xml.dist`); prefixes `ticketoo_` / `ticketoo-`.
 - PHP 8.0: typed properties, `declare(strict_types=1)` in new files.
-- i18n: text domain `support-tickets`, all strings translatable, RTL handled with `wp_style_add_data(..., 'rtl', 'replace')`.
+- i18n: text domain `ticketoo`, all strings translatable, RTL handled with `wp_style_add_data(..., 'rtl', 'replace')`.
 - DocBlocks on every public class/method; hooks documented with `@since` / `@param`.
 - **Tests:** PHPUnit covering repositories, guest token verification, auto-close, capabilities, and REST permission cases (guest with wrong token → 403; user cannot read another user's ticket). Commands documented in `docs/development.md`.
 
 ## 10. Extension points (future Pro)
 
-Filters: `st_statuses`, `st_ticket_fields`, `st_rest_response_ticket`, `st_template_path`, `st_email_*`.
-Actions: `st_ticket_created`, `st_ticket_status_changed`, `st_ticket_assigned`, `st_auto_close_ticket`, `st_before_send_email`.
+Filters: `ticketoo_statuses`, `ticketoo_ticket_fields`, `ticketoo_reticketoo_response_ticket`, `ticketoo_template_path`, `ticketoo_email_*`.
+Actions: `ticketoo_ticket_created`, `ticketoo_ticket_status_changed`, `ticketoo_ticket_assigned`, `ticketoo_auto_close_ticket`, `ticketoo_before_send_email`.
 
 ## 11. Documentation and GitHub
 
