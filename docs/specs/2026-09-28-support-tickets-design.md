@@ -77,7 +77,7 @@ ticketoo/
 │   │   ├── FrontendController.php   create/list/read/reply (user + guest)
 │   │   └── AdminController.php      panel endpoints (capability-gated)
 │   ├── Shortcode/TicketooShortcode.php `[ticketoo view="list|form|ticket" id=""]`
-│   ├── Guest/TokenAccess.php    guest link verification (hashed token)
+│   ├── Guest/TokenAccess.php    guest link verification (hash_equals)
 │   ├── Email/Notifier.php       wp_mail wrapper + filterable templates
 │   ├── AutoClose.php            daily WP-Cron sweep
 │   └── Admin/
@@ -112,11 +112,11 @@ Three tables with `{$wpdb->prefix}`:
 | `user_id` | BIGINT UNSIGNED | `0` for guests |
 | `email` | VARCHAR(160) | guest email + fallback for users |
 | `assigned_to` | BIGINT UNSIGNED NULL | agent user id |
-| `gueticketoo_token_hash` | CHAR(64) NULL | SHA-256 of token; raw token only in emailed link |
-| `laticketoo_activity_at` | DATETIME | auto-close basis + sorting |
+| `guest_token` | CHAR(64) NULL | 64-hex bearer token for guests (see token note) |
+| `last_activity_at` | DATETIME | auto-close basis + sorting |
 | `created_at` / `updated_at` | DATETIME | |
 
-Indexes: `(status, laticketoo_activity_at)`, `user_id`, `email`, `assigned_to`, FULLTEXT(`subject`).
+Indexes: `(status, last_activity_at)`, `user_id`, `email`, `assigned_to`, FULLTEXT(`subject`).
 
 ### `ticketoo_messages`
 `id`, `ticket_id` (index), `user_id`, `email`, `is_agent` TINYINT(1) (`0` user/guest, `1` agent, `2` system message), `content` LONGTEXT + FULLTEXT, `created_at`.
@@ -125,6 +125,8 @@ Indexes: `(status, laticketoo_activity_at)`, `user_id`, `email`, `assigned_to`, 
 `id`, `message_id` (index), `file_path`, `original_name`, `mime`, `size`, `created_at`.
 
 **Attachments:** stored under `uploads/ticketoo/YYYY/MM/` with a 24-char random filename; downloads only through a permission-checked endpoint (owner / agent / guest-with-token); `.htaccess` deny in the folder. Documented limitation: nginx needs a server-level rule (noted in readme).
+
+**Guest token note:** the token must be readable later to build token links in outgoing emails (agent reply, auto-close), so it is stored **raw** in `guest_token` and never hashed away. It is a bearer capability: treated like a secret — compared only with `hash_equals`, never returned in any REST response, never logged. (Amended 2026-09-28: originally specified as a SHA-256 hash, which would have made later token-link emails impossible.)
 
 **Capabilities:** custom cap `ticketoo_manage_tickets` (default: administrators only) + new role `ticketoo_agent` (that cap + `read`). Users see only their own tickets via `user_id`; guests only with valid `id + token`.
 
@@ -147,9 +149,9 @@ Gutenberg: three blocks whose `render_callback` delegates to the shortcode (sing
 | `POST /tickets/{id}/assign` | `ticketoo_manage_tickets` | assign agent |
 | `GET /attachments/{id}` | permission-checked | secure download |
 
-**Guest flow:** form (name, email, subject, message) → ticket created → email with link `.../?ticketoo_ticket=ID&token=RAW` (only hash stored) → same link to view and reply. No email access means no return access (documented in readme).
+**Guest flow:** form (name, email, subject, message) → ticket created → email with link `.../?ticketoo_ticket=ID&token=RAW` (raw token also stored in DB so later emails can rebuild the link) → same link to view and reply. No email access means no return access (documented in readme).
 
-**Guest access model (explicit):** a token grants access to **one specific ticket only**. Guests have no list endpoint and no session state; every guest route (`GET /tickets/{id}`, `POST /tickets/{id}/messages`, `GET /attachments/{id}`) requires the `token` parameter and verifies it with `hash_equals` against `gueticketoo_token_hash`. Listing requires an authenticated user or agent.
+**Guest access model (explicit):** a token grants access to **one specific ticket only**. Guests have no list endpoint and no session state; every guest route (`GET /tickets/{id}`, `POST /tickets/{id}/messages`, `GET /attachments/{id}`) requires the `token` parameter and verifies it with `hash_equals` against `guest_token`. Listing requires an authenticated user or agent.
 
 **User flow:** log in → own ticket list → create / reply / close.
 
@@ -177,9 +179,9 @@ Template `templates/email/default.php` with `{{vars}}`; filters `ticketoo_email_
 
 **Auto-close (WP-Cron):**
 - Daily event `ticketoo_auto_close_sweep`, registered on activation and re-checked with `wp_next_scheduled`.
-- Query: `status IN ('open','pending')` and `laticketoo_activity_at < NOW() - N days`.
+- Query: `status IN ('open','pending')` and `last_activity_at < NOW() - N days`.
 - Before closing: `ticketoo_auto_close_ticket` filter (veto allowed) → status `closed` + system message (`is_agent=2`) in thread + email to owner.
-- `ticketoo_auto_close_days` option, default 14, `0` disables. New activity updates `laticketoo_activity_at` and restarts the window.
+- `ticketoo_auto_close_days` option, default 14, `0` disables. New activity updates `last_activity_at` and restarts the window.
 - Documented caveat: WP-Cron runs on visits; real cron recommended in readme.
 
 **Close by user:** close button for the owner (while open); agents can reopen. Action `ticketoo_ticket_status_changed` after every change.
@@ -187,7 +189,7 @@ Template `templates/email/default.php` with `{{vars}}`; filters `ticketoo_email_
 ## 8. Security
 
 - Explicit `permission_callback` on every route.
-- `wp_rest` nonce + server-side `current_user_can('ticketoo_manage_tickets')` for `scope=all`; ownership check (`user_id`) or `hash_equals` on `gueticketoo_token_hash` otherwise.
+- `wp_rest` nonce + server-side `current_user_can('ticketoo_manage_tickets')` for `scope=all`; ownership check (`user_id`) or `hash_equals` on `guest_token` otherwise. `guest_token` is never included in any REST response body.
 - Input: `sanitize_text_field`, `sanitize_email`, `wp_kses_post` for message bodies; output: `esc_html` / `esc_url` everywhere.
 - Uploads: `wp_check_filetype_and_ext`, size/type limits from settings, random filename, outside the media library, `.htaccess` deny, `realpath` guard against path traversal on download.
 - All SQL through `$wpdb->prepare`; no `eval`, no user-controlled includes.
@@ -202,7 +204,7 @@ Template `templates/email/default.php` with `{{vars}}`; filters `ticketoo_email_
 
 ## 10. Extension points (future Pro)
 
-Filters: `ticketoo_statuses`, `ticketoo_ticket_fields`, `ticketoo_reticketoo_response_ticket`, `ticketoo_template_path`, `ticketoo_email_*`.
+Filters: `ticketoo_statuses`, `ticketoo_ticket_fields`, `ticketoo_rest_response_ticket`, `ticketoo_template_path`, `ticketoo_email_*`.
 Actions: `ticketoo_ticket_created`, `ticketoo_ticket_status_changed`, `ticketoo_ticket_assigned`, `ticketoo_auto_close_ticket`, `ticketoo_before_send_email`.
 
 ## 11. Documentation and GitHub
