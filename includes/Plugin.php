@@ -8,6 +8,7 @@
 namespace Ticketoo;
 
 use Ticketoo\Admin\Capabilities;
+use Ticketoo\Rest\FrontendController;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -19,13 +20,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Plugin {
 
 	/**
-	 * Runs on plugins_loaded. Currently re-asserts the capability and agent
-	 * role so they survive wiped options; later tasks wire their hooks,
-	 * services and REST routes here.
+	 * Runs on plugins_loaded. Re-asserts the capability and agent role so
+	 * they survive wiped options, and queues the public REST routes for
+	 * rest_api_init; later tasks wire their remaining hooks here.
 	 *
 	 * @return void
 	 */
 	public static function boot(): void {
 		Capabilities::register();
+
+		add_action( 'rest_api_init', array( FrontendController::class, 'register_routes' ) );
 	}
 }
