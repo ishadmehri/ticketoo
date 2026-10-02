@@ -243,6 +243,38 @@ class Test_Rest_Status_Attachments extends Ticketoo_Database_TestCase {
 		$this->assertNull( $ticket->assigned_to, 'A rejected assignment must not be stored.' );
 	}
 
+	public function test_assign_rejects_non_agent_target(): void {
+		$agent      = self::factory()->user->create( array( 'role' => Capabilities::ROLE ) );
+		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$owner      = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$ticket_id  = $this->create_ticket(
+			array(
+				'user_id' => $owner,
+				'email'   => 'owner@example.com',
+			)
+		);
+
+		wp_set_current_user( $agent );
+
+		$response = $this->dispatch(
+			'POST',
+			sprintf( '/ticketoo/v1/tickets/%d/assign', $ticket_id ),
+			array(),
+			array( 'user_id' => $subscriber )
+		);
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame(
+			'ticketoo_rest_invalid_assignee',
+			$response->get_data()['code'],
+			'A requester holding ticketoo_manage_tickets must still be refused a non-agent target.'
+		);
+
+		$ticket = TicketRepository::find( $ticket_id );
+		$this->assertNotNull( $ticket );
+		$this->assertNull( $ticket->assigned_to, 'A rejected assignee must not be stored.' );
+	}
+
 	public function test_assign_zero_unassigns(): void {
 		$agent     = self::factory()->user->create( array( 'role' => Capabilities::ROLE ) );
 		$target    = self::factory()->user->create( array( 'role' => Capabilities::ROLE ) );
@@ -585,6 +617,96 @@ class Test_Rest_Status_Attachments extends Ticketoo_Database_TestCase {
 
 		$this->assertSame( 200, $ok->get_status() );
 		$this->assertSame( file_get_contents( self::fixture() ), $ok->get_data() );
+	}
+
+	public function test_download_rejects_path_traversal(): void {
+		$user      = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$ticket_id = $this->create_ticket(
+			array(
+				'user_id' => $user,
+				'email'   => 'owner@example.com',
+			)
+		);
+
+		$tmp = $this->temp_copy( self::fixture() );
+
+		wp_set_current_user( $user );
+
+		$upload = $this->dispatch_with_files(
+			sprintf( '/ticketoo/v1/tickets/%d/messages', $ticket_id ),
+			array( 'content' => 'Log attached.' ),
+			$this->file_params( 'sample.txt', $tmp )
+		);
+		$this->assertSame( 201, $upload->get_status() );
+
+		$attachment_id = (int) $upload->get_data()['attachments'][0]['id'];
+		$row           = $this->attachment_row( $attachment_id );
+		$this->assertNotNull( $row );
+
+		$original_path = (string) $row->file_path;
+		$this->temp_files[] = $original_path;
+
+		// A real, readable file OUTSIDE uploads/ticketoo whose contents must
+		// never reach the response; poison the stored path with it the way a
+		// compromised DB row would.
+		$secret = tempnam( sys_get_temp_dir(), 'ticketoo' );
+		file_put_contents( $secret, 'SECRET-CONTENT-OUTSIDE-THE-UPLOADS-DIR' );
+		$this->temp_files[] = $secret;
+
+		global $wpdb;
+		$attachments_table = Activator::table_names()['attachments'];
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Test poisons the row it just created to exercise the realpath guard; table name comes from Activator::table_names().
+		$updated = $wpdb->update(
+			$attachments_table,
+			array( 'file_path' => $secret ),
+			array( 'id' => $attachment_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		$this->assertSame( 1, $updated, 'The test must poison the stored file_path.' );
+
+		$denied = $this->dispatch( 'GET', sprintf( '/ticketoo/v1/attachments/%d', $attachment_id ) );
+
+		$this->assertSame( 404, $denied->get_status() );
+		$this->assertSame( 'ticketoo_rest_attachment_not_found', $denied->get_data()['code'] );
+
+		$body = wp_json_encode( $denied->get_data() );
+		$this->assertStringNotContainsString(
+			'SECRET-CONTENT-OUTSIDE-THE-UPLOADS-DIR',
+			(string) $body,
+			'A file_path escaping the ticketoo upload directory must never be served.'
+		);
+		$this->assertFileExists( $secret, 'The guard must reject without consuming the file.' );
+	}
+
+	public function test_download_unauthenticated_forbidden(): void {
+		$user      = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$ticket_id = $this->create_ticket(
+			array(
+				'user_id' => $user,
+				'email'   => 'owner@example.com',
+			)
+		);
+
+		$tmp = $this->temp_copy( self::fixture() );
+
+		wp_set_current_user( $user );
+
+		$upload = $this->dispatch_with_files(
+			sprintf( '/ticketoo/v1/tickets/%d/messages', $ticket_id ),
+			array( 'content' => 'Log attached.' ),
+			$this->file_params( 'sample.txt', $tmp )
+		);
+		$this->assertSame( 201, $upload->get_status() );
+
+		$attachment_id = (int) $upload->get_data()['attachments'][0]['id'];
+
+		wp_set_current_user( 0 );
+
+		$denied = $this->dispatch( 'GET', sprintf( '/ticketoo/v1/attachments/%d', $attachment_id ) );
+
+		$this->assertSame( 403, $denied->get_status() );
+		$this->assertSame( 'ticketoo_rest_forbidden', $denied->get_data()['code'] );
 	}
 
 	/**
