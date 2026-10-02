@@ -1,0 +1,598 @@
+# Copyright (C) 2026 Iman Shadmehri
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Ticketoo 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/ticketoo\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-10-01T18:20:52+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.9.0\n"
+"X-Domain: ticketoo\n"
+
+#. Plugin Name of the plugin
+#: includes/Admin/MenuPage.php:37
+#: includes/Admin/MenuPage.php:38
+msgid "Ticketoo"
+msgstr ""
+
+#. Plugin URI of the plugin
+msgid "https://github.com/ishadmehri/ticketoo"
+msgstr ""
+
+#. Description of the plugin
+msgid "Lightweight and fast support ticket plugin for WordPress."
+msgstr ""
+
+#. Author of the plugin
+msgid "Iman Shadmehri"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://elinweb.ir"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:108
+msgid "No tickets found."
+msgstr ""
+
+#: includes/Admin/MenuPage.php:109
+msgid "The request could not be completed. Please try again."
+msgstr ""
+
+#: includes/Admin/MenuPage.php:110
+#: includes/Shortcode/TicketooShortcode.php:661
+msgid "You"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:111
+#: includes/Shortcode/TicketooShortcode.php:662
+#: templates/list.php:73
+msgid "Previous"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:112
+#: includes/Shortcode/TicketooShortcode.php:663
+#: templates/list.php:87
+msgid "Next"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:113
+#: includes/Shortcode/TicketooShortcode.php:664
+msgid "View ticket"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:114
+msgid "Reply"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:115
+msgid "Assign"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:116
+msgid "Unassigned"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:117
+msgid "Close"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:118
+msgid "Loading…"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:119
+#: templates/conversation.php:94
+msgid "Your reply"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:120
+#: templates/conversation.php:99
+msgid "Attach files"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:121
+#: includes/Shortcode/TicketooShortcode.php:599
+#: includes/Shortcode/TicketooShortcode.php:658
+msgid "Your reply has been sent."
+msgstr ""
+
+#: includes/Admin/MenuPage.php:122
+msgid "The ticket has been assigned."
+msgstr ""
+
+#: includes/Admin/MenuPage.php:123
+msgid "The ticket status has been updated."
+msgstr ""
+
+#: includes/Admin/MenuPage.php:139
+#: includes/Admin/SettingsPage.php:336
+msgid "You are not allowed to access this page."
+msgstr ""
+
+#: includes/Admin/MenuPage.php:144
+msgid "Support Tickets"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:154
+#: templates/list.php:25
+msgid "All"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:164
+msgid "Filter by agent"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:168
+msgid "All agents"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:178
+msgid "Search tickets"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:185
+msgid "Search…"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:195
+#: templates/form.php:29
+msgid "Subject"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:196
+msgid "Customer"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:197
+msgid "Agent"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:198
+msgid "Status"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:199
+msgid "Last activity"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:205
+msgid "Loading tickets…"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:236
+#: includes/Rest/FrontendController.php:1094
+#: includes/Shortcode/TicketooShortcode.php:477
+msgid "Open"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:237
+#: includes/Rest/FrontendController.php:1095
+#: includes/Shortcode/TicketooShortcode.php:478
+msgid "Pending"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:238
+#: includes/Rest/FrontendController.php:1096
+#: includes/Shortcode/TicketooShortcode.php:479
+msgid "Answered"
+msgstr ""
+
+#: includes/Admin/MenuPage.php:239
+#: includes/Rest/FrontendController.php:1097
+#: includes/Shortcode/TicketooShortcode.php:480
+msgid "Closed"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:99
+#: includes/Admin/SettingsPage.php:100
+msgid "Settings"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:341
+msgid "Ticketoo Settings"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:350
+msgid "Auto-close after (days)"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:351
+msgid "Idle open or pending tickets are closed after this many days. 0 disables auto-close."
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:360
+msgid "Attachment size limit (MB)"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:361
+msgid "Uploads larger than this are rejected; the maximum accepted value is 100."
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:371
+msgid "Allowed attachment types"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:372
+msgid "Comma-separated file extensions, e.g. jpg,png,pdf."
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:380
+msgid "Sender name"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:381
+msgid "Name shown on notification emails. Leave empty to use the site name."
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:385
+msgid "Sender email"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:386
+msgid "Address notification emails are sent from. Leave empty to use the site address."
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:393
+msgid "Allow guest tickets"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:406
+msgid "Visitors without an account can open tickets."
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:413
+msgid "Counter refresh (seconds)"
+msgstr ""
+
+#: includes/Admin/SettingsPage.php:414
+msgid "How often the panel refreshes its new-ticket counter. 0 disables polling."
+msgstr ""
+
+#. translators: %d: number of days of inactivity before a ticket is auto-closed.
+#: includes/AutoClose.php:181
+msgid "This ticket was automatically closed after %d days of inactivity."
+msgstr ""
+
+#. translators: 1: ticket number, 2: ticket subject, 3: excerpt of the opening message.
+#: includes/Email/Notifier.php:60
+msgid "Ticket #%1$d \"%2$s\" has been created: %3$s"
+msgstr ""
+
+#. translators: %d: ticket number.
+#: includes/Email/Notifier.php:80
+msgid "We received your ticket #%d. Use the link below to view the conversation and reply at any time."
+msgstr ""
+
+#. translators: 1: ticket number, 2: ticket subject.
+#: includes/Email/Notifier.php:132
+msgid "Support replied to your ticket #%1$d: %2$s. Follow the link below to read the answer and respond."
+msgstr ""
+
+#. translators: 1: ticket number, 2: ticket subject.
+#: includes/Email/Notifier.php:178
+msgid "A new reply was posted on ticket #%1$d: %2$s. Follow the link below to view the conversation."
+msgstr ""
+
+#. translators: %d: ticket number.
+#: includes/Email/Notifier.php:212
+msgid "Your ticket #%d has been closed due to inactivity. Reply to reopen it."
+msgstr ""
+
+#. translators: 1: ticket number, 2: ticket subject.
+#: includes/Email/Notifier.php:303
+msgid "New ticket #%1$d: %2$s"
+msgstr ""
+
+#. translators: %d: ticket number.
+#: includes/Email/Notifier.php:311
+msgid "Your ticket #%d has been received"
+msgstr ""
+
+#. translators: 1: ticket number, 2: ticket subject.
+#: includes/Email/Notifier.php:318
+msgid "Support replied to ticket #%1$d: %2$s"
+msgstr ""
+
+#. translators: 1: ticket number, 2: ticket subject.
+#: includes/Email/Notifier.php:326
+msgid "New reply on ticket #%1$d: %2$s"
+msgstr ""
+
+#. translators: %d: ticket number.
+#: includes/Email/Notifier.php:335
+msgid "Ticket #%d has been closed"
+msgstr ""
+
+#: includes/Rest/FrontendController.php:61
+msgid "Filter by status slug."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:65
+msgid "Match this text against the subject."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:69
+msgid "Page number, 1-based."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:75
+msgid "Page size; capped at 100."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:81
+msgid "mine (default) or all (agents only)."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:94
+msgid "Ticket subject."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:99
+msgid "First message body."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:104
+msgid "Guest display name."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:108
+msgid "Contact email address."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:128
+#: includes/Rest/FrontendController.php:152
+msgid "Guest bearer token for this ticket."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:147
+msgid "Reply body."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:171
+msgid "New status slug; must exist in the ticketoo_statuses list."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:191
+msgid "Agent user id to assign the ticket to, or 0 to unassign."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:211
+msgid "Guest bearer token for the ticket this attachment belongs to."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:229
+msgid "You must be logged in to list tickets."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:237
+#: includes/Rest/FrontendController.php:430
+msgid "Sorry, you are not allowed to list every ticket."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:258
+msgid "Guest ticket creation is disabled."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:288
+#: includes/Rest/FrontendController.php:381
+msgid "A valid ticket token is required."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:324
+msgid "Guests cannot change the ticket status."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:350
+msgid "Sorry, you are not allowed to assign tickets."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:493
+msgid "A subject is required."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:503
+#: includes/Rest/FrontendController.php:659
+msgid "A message is required."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:514
+msgid "A valid email address is required."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:539
+#: includes/Rest/FrontendController.php:549
+#: includes/Rest/FrontendController.php:559
+msgid "The ticket could not be created."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:684
+msgid "The reply could not be saved."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:708
+msgid "The attachment could not be stored."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:752
+msgid "Unknown ticket status."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:760
+msgid "You may only close your own ticket; agents may set any status."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:771
+msgid "The ticket status could not be updated."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:821
+msgid "A positive user id, or 0 to unassign, is required."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:832
+msgid "The requested user does not exist."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:845
+msgid "Tickets can only be assigned to support agents or administrators."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:870
+msgid "The ticket could not be assigned."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:1168
+msgid "This file type is not allowed."
+msgstr ""
+
+#. translators: %d: Maximum attachment size in megabytes.
+#: includes/Rest/FrontendController.php:1184
+msgid "Attachments must not exceed %d MB."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:1471
+msgid "The upload could not be processed."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:1529
+msgid "Ticket not found."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:1545
+msgid "Attachment not found."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:269
+msgid "Please log in to view your tickets."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:316
+msgid "Guest ticket creation is disabled. Please log in to open a ticket."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:337
+msgid "This ticket link is invalid or has expired."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:341
+msgid "You are not allowed to view this ticket. Use the link from your email or log in."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:598
+#: includes/Shortcode/TicketooShortcode.php:657
+msgid "Your ticket has been created."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:600
+#: includes/Shortcode/TicketooShortcode.php:659
+msgid "The ticket has now been closed."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:601
+#: includes/Shortcode/TicketooShortcode.php:660
+msgid "Your submission could not be saved. Please try again."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:602
+msgid "The form has expired. Please try again."
+msgstr ""
+
+#: includes/Shortcode/TicketooShortcode.php:656
+#: templates/list.php:46
+msgid "You have not opened a ticket yet."
+msgstr ""
+
+#: integrations/Elementor.php:91
+msgid "Ticketoo Ticket"
+msgstr ""
+
+#: integrations/Elementor.php:121
+msgid "Ticketoo ticket"
+msgstr ""
+
+#: integrations/Elementor.php:129
+msgid "View"
+msgstr ""
+
+#: integrations/Elementor.php:132
+msgid "Ticket list"
+msgstr ""
+
+#: integrations/Elementor.php:133
+msgid "New ticket form"
+msgstr ""
+
+#: integrations/Elementor.php:134
+msgid "Conversation"
+msgstr ""
+
+#: integrations/Elementor.php:143
+#: assets/js/block.js:64
+msgid "Ticket ID"
+msgstr ""
+
+#: templates/conversation.php:33
+msgid "Close ticket"
+msgstr ""
+
+#: templates/conversation.php:66
+msgid "Earlier messages"
+msgstr ""
+
+#: templates/conversation.php:71
+msgid "Later messages"
+msgstr ""
+
+#: templates/conversation.php:104
+msgid "Send reply"
+msgstr ""
+
+#: templates/form.php:35
+msgid "Your email"
+msgstr ""
+
+#: templates/form.php:41
+msgid "Message"
+msgstr ""
+
+#: templates/form.php:46
+msgid "Open ticket"
+msgstr ""
+
+#: templates/guest-notice.php:20
+msgid "Log in"
+msgstr ""
+
+#: assets/js/block.js:24
+msgid "Ticketoo Ticket List"
+msgstr ""
+
+#: assets/js/block.js:25
+msgid "Shows the tickets of the logged-in visitor."
+msgstr ""
+
+#: assets/js/block.js:29
+msgid "Ticketoo New Ticket Form"
+msgstr ""
+
+#: assets/js/block.js:30
+msgid "Shows the new-ticket form."
+msgstr ""
+
+#: assets/js/block.js:34
+msgid "Ticketoo Conversation"
+msgstr ""
+
+#: assets/js/block.js:35
+msgid "Shows one ticket conversation, selected by ticket ID."
+msgstr ""
+
+#: assets/js/block.js:62
+msgid "Ticket"
+msgstr ""

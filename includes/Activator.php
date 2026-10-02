@@ -94,7 +94,8 @@ class Activator {
 
 	/**
 	 * Uninstall hook callback: drops the custom tables, removes the agent
-	 * role and capability, and deletes every ticketoo_* option.
+	 * role and capability, deletes every ticketoo_* option, and unschedules
+	 * the daily auto-close sweep.
 	 *
 	 * Idempotent — safe to run when only part of the plugin was installed.
 	 *
@@ -115,6 +116,12 @@ class Activator {
 		if ( null !== $administrator ) {
 			$administrator->remove_cap( Capabilities::CAP );
 		}
+
+		// The daily sweep lives in the shared cron option (it does not match
+		// the ticketoo_* LIKE below), so unschedule it explicitly: a deleted
+		// plugin must not keep a recurring event behind. No-op when the event
+		// was never scheduled, keeping uninstall idempotent.
+		wp_clear_scheduled_hook( AutoClose::HOOK );
 
 		$like = $wpdb->esc_like( 'ticketoo_' ) . '%';
 

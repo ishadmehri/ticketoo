@@ -30,4 +30,18 @@ Ticketoo\Autoloader::register();
 
 register_activation_hook( __FILE__, array( Ticketoo\Activator::class, 'activate' ) );
 
+// Register the plugin's languages directory on init (WP 6.7+ requires
+// translations to load at init or later; the actual .mo load still happens
+// just in time on the first translated string).
+add_action(
+	'init',
+	static function (): void {
+		load_plugin_textdomain(
+			'ticketoo',
+			false,
+			dirname( plugin_basename( TICKETOO_FILE ) ) . '/languages'
+		);
+	}
+);
+
 add_action( 'plugins_loaded', array( Ticketoo\Plugin::class, 'boot' ) );
