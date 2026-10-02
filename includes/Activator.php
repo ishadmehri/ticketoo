@@ -83,6 +83,13 @@ class Activator {
 		dbDelta( $queries );
 
 		Capabilities::register();
+
+		// Spec 7: the daily auto-close sweep is registered on activation and
+		// re-checked with wp_next_scheduled() on init (AutoClose::register_hooks),
+		// so repeated activations never stack duplicate events.
+		if ( ! wp_next_scheduled( AutoClose::HOOK ) ) {
+			wp_schedule_event( time(), 'daily', AutoClose::HOOK );
+		}
 	}
 
 	/**

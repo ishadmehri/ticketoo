@@ -57,9 +57,14 @@ class Plugin {
 		// ticketoo_ticket_created, the shared reply handler fires
 		// ticketoo_ticket_replied (both the AJAX and the classic no-JS path
 		// replay through it); the auto-close sweep calls
-		// Notifier::on_auto_closed() directly when Task 13 lands.
+		// Notifier::on_auto_closed() directly when it closes a ticket.
 		add_action( 'ticketoo_ticket_created', array( Notifier::class, 'on_ticket_created' ) );
 		add_action( 'ticketoo_ticket_replied', array( Notifier::class, 'on_ticket_replied' ), 10, 2 );
+
+		// Auto-close sweep (spec §7): the daily WP-Cron event plus the init
+		// re-schedule guard; sweep() closes stale open/pending tickets and
+		// calls Notifier::on_auto_closed() itself.
+		AutoClose::register_hooks();
 
 		// Server-rendered views (ADR 0003): the shortcode prints markup that
 		// works without JavaScript, and template_redirect turns the classic
