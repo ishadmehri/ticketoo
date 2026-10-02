@@ -38,3 +38,7 @@ tests_add_filter( 'muplugins_loaded', 'ticketoo_load_plugin' );
 
 // Start up the WP testing environment.
 require_once $_tests_dir . '/includes/bootstrap.php';
+
+// Shared base case for tests that run the plugin's DDL against real tables
+// (loaded here so WP_UnitTestCase exists; not collected as a test itself).
+require_once __DIR__ . '/database-testcase.php';

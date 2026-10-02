@@ -5,24 +5,12 @@
  * @package Ticketoo
  */
 
+declare( strict_types = 1 );
+
 use Ticketoo\Activator;
 use Ticketoo\Admin\Capabilities;
 
-class Test_Activator extends WP_UnitTestCase {
-
-	/**
-	 * The framework rewrites CREATE/DROP TABLE into temporary-table
-	 * statements so DDL stays inside the test transaction, but MySQL
-	 * cannot create FULLTEXT indexes on temporary InnoDB tables. Run the
-	 * Activator's DDL against real tables instead; every test activates
-	 * first, so the class stays self-contained.
-	 */
-	public function set_up(): void {
-		parent::set_up();
-
-		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
-		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
-	}
+class Test_Activator extends Ticketoo_Database_TestCase {
 
 	public function test_tables_created(): void {
 		global $wpdb;
@@ -72,6 +60,16 @@ class Test_Activator extends WP_UnitTestCase {
 	}
 
 	public function test_agent_role_created(): void {
+		// Plugin::boot() registers the role and capability during test
+		// bootstrap, so scrub both first: these assertions must attribute
+		// registration to activate() alone.
+		remove_role( Capabilities::ROLE );
+
+		$administrator = get_role( 'administrator' );
+		if ( null !== $administrator ) {
+			$administrator->remove_cap( Capabilities::CAP );
+		}
+
 		Activator::activate();
 
 		$role = get_role( Capabilities::ROLE );
@@ -84,6 +82,13 @@ class Test_Activator extends WP_UnitTestCase {
 	}
 
 	public function test_administrator_has_cap(): void {
+		// Scrub the bootstrap registration so the assertion attributes the
+		// grant to activate() alone.
+		$administrator = get_role( 'administrator' );
+		if ( null !== $administrator ) {
+			$administrator->remove_cap( Capabilities::CAP );
+		}
+
 		Activator::activate();
 
 		$admin = get_user_by( 'login', 'admin' );

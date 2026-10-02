@@ -5,6 +5,8 @@
  * @package Ticketoo
  */
 
+declare( strict_types = 1 );
+
 namespace Ticketoo\Admin;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -43,7 +45,7 @@ class Capabilities {
 		if ( null === get_role( self::ROLE ) ) {
 			add_role(
 				self::ROLE,
-				__( 'Support Agent', 'ticketoo' ),
+				'Support Agent',
 				array(
 					'read'    => true,
 					self::CAP => true,
