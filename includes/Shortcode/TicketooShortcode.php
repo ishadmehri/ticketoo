@@ -616,7 +616,12 @@ class TicketooShortcode {
 	}
 
 	/**
-	 * Registers the front-end stylesheet (only printed when a shortcode ran).
+	 * Registers the front-end stylesheet and enhancement script (only printed
+	 * when a shortcode ran).
+	 *
+	 * The script consumes the localized `ticketooFrontend` payload — REST
+	 * base URL, `wp_rest` nonce and translated UI strings (ADR 0003: without
+	 * the script the server-rendered markup keeps working on its own).
 	 *
 	 * @return void
 	 */
@@ -626,6 +631,39 @@ class TicketooShortcode {
 			plugins_url( 'assets/css/frontend.css', TICKETOO_FILE ),
 			array(),
 			TICKETOO_VERSION
+		);
+
+		if ( wp_script_is( 'ticketoo-frontend', 'enqueued' ) ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'ticketoo-frontend',
+			plugins_url( 'assets/js/frontend.js', TICKETOO_FILE ),
+			array(),
+			TICKETOO_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'ticketoo-frontend',
+			'ticketooFrontend',
+			array(
+				'restUrl' => rest_url( 'ticketoo/v1' ),
+				'nonce'   => wp_create_nonce( 'wp_rest' ),
+				'i18n'    => array(
+					'statuses' => self::statuses(),
+					'empty'    => __( 'You have not opened a ticket yet.', 'ticketoo' ),
+					'created'  => __( 'Your ticket has been created.', 'ticketoo' ),
+					'replied'  => __( 'Your reply has been sent.', 'ticketoo' ),
+					'closed'   => __( 'The ticket has now been closed.', 'ticketoo' ),
+					'error'    => __( 'Your submission could not be saved. Please try again.', 'ticketoo' ),
+					'you'      => __( 'You', 'ticketoo' ),
+					'prev'     => __( 'Previous', 'ticketoo' ),
+					'next'     => __( 'Next', 'ticketoo' ),
+					'view'     => __( 'View ticket', 'ticketoo' ),
+				),
+			)
 		);
 	}
 
