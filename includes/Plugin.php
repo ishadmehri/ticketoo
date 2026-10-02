@@ -8,6 +8,8 @@
 namespace Ticketoo;
 
 use Ticketoo\Admin\Capabilities;
+use Ticketoo\Integrations\Elementor;
+use Ticketoo\Integrations\Gutenberg;
 use Ticketoo\Rest\FrontendController;
 use Ticketoo\Shortcode\TicketooShortcode;
 
@@ -38,5 +40,38 @@ class Plugin {
 		// form posts into post/redirect/get cycles before anything renders.
 		add_shortcode( 'ticketoo', array( TicketooShortcode::class, 'shortcode' ) );
 		add_action( 'template_redirect', array( TicketooShortcode::class, 'handle_post' ) );
+
+		// The Gutenberg blocks are wrappers over that same shortcode. The
+		// integrations/ directory sits outside the includes/-rooted
+		// autoloader, so its entry file is loaded here explicitly.
+		require_once TICKETOO_DIR . 'integrations/Gutenberg.php';
+		add_action( 'init', array( Gutenberg::class, 'register' ) );
+
+		// Elementor is a soft dependency: integrations/Elementor.php extends
+		// \Elementor\Widget_Base and must stay unloaded until Elementor has
+		// actually loaded. Elementor fires `elementor/loaded` while its own
+		// plugin file is included — before `plugins_loaded`, so usually
+		// before boot() runs — hence the did_action() fast path; the hook
+		// covers load orders in which Elementor arrives afterwards.
+		add_action( 'elementor/loaded', array( __CLASS__, 'boot_elementor' ) );
+
+		if ( did_action( 'elementor/loaded' ) ) {
+			self::boot_elementor();
+		}
+	}
+
+	/**
+	 * Loads the Elementor integration and hands over to its maybe_register().
+	 *
+	 * Reached only from the `elementor/loaded` hook (or the did_action()
+	 * fast path in boot()), so integrations/Elementor.php — and with it the
+	 * Widget_Base subclass — never loads on a site without Elementor.
+	 *
+	 * @return void
+	 */
+	public static function boot_elementor(): void {
+		require_once TICKETOO_DIR . 'integrations/Elementor.php';
+
+		Elementor::maybe_register();
 	}
 }
