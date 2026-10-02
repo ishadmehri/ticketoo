@@ -1,0 +1,371 @@
+/**
+ * Ticketoo front-end styles for the server-rendered shortcode views.
+ *
+ * Only logical properties are used (inline-start/inline-end, inset-inline),
+ * so the layout mirrors itself in RTL languages without extra rules.
+ */
+
+.ticketoo {
+	box-sizing: border-box;
+	margin-block: 1rem;
+	color: #1f2430;
+	font-size: 1rem;
+	line-height: 1.5;
+}
+
+.ticketoo *,
+.ticketoo *::before,
+.ticketoo *::after {
+	box-sizing: inherit;
+}
+
+.ticketoo-badge {
+	display: inline-block;
+	padding: 0.1rem 0.5rem;
+	border-radius: 999px;
+	background: #e6e8ee;
+	color: #3b4252;
+	font-size: 0.8rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.ticketoo-badge--open {
+	background: #dbeafe;
+	color: #1d4ed8;
+}
+
+.ticketoo-badge--pending {
+	background: #fef3c7;
+	color: #b45309;
+}
+
+.ticketoo-badge--answered {
+	background: #dcfce7;
+	color: #15803d;
+}
+
+.ticketoo-badge--closed {
+	background: #e5e7eb;
+	color: #4b5563;
+}
+
+/* Filters. */
+
+.ticketoo-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-block-end: 1rem;
+}
+
+.ticketoo-filter {
+	display: inline-block;
+	padding: 0.3rem 0.75rem;
+	border: 1px solid #d4d7e0;
+	border-radius: 999px;
+	color: inherit;
+	text-decoration: none;
+}
+
+.ticketoo-filter:hover,
+.ticketoo-filter:focus {
+	border-color: #2563eb;
+	color: #2563eb;
+}
+
+.ticketoo-filter.is-active {
+	border-color: #2563eb;
+	background: #2563eb;
+	color: #fff;
+}
+
+/* Ticket list. */
+
+.ticketoo-list {
+	border: 1px solid #e3e6ee;
+	border-radius: 0.5rem;
+	overflow: hidden;
+}
+
+.ticketoo-empty {
+	margin: 0;
+	padding: 1.25rem;
+	color: #5b6172;
+}
+
+.ticketoo-items {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.ticketoo-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.85rem 1rem;
+	border-block-end: 1px solid #e3e6ee;
+}
+
+.ticketoo-item:last-child {
+	border-block-end: 0;
+}
+
+.ticketoo-item__link {
+	flex: 1 1 auto;
+	min-width: 12ch;
+	color: inherit;
+	text-decoration: none;
+}
+
+.ticketoo-item__link:hover .ticketoo-item__subject,
+.ticketoo-item__link:focus .ticketoo-item__subject {
+	color: #2563eb;
+	text-decoration: underline;
+}
+
+.ticketoo-item__subject {
+	font-weight: 600;
+}
+
+.ticketoo-item__time {
+	margin-inline-start: auto;
+	color: #5b6172;
+	font-size: 0.85rem;
+	white-space: nowrap;
+}
+
+/* Pagination. */
+
+.ticketoo-pagination {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin-block-start: 1rem;
+}
+
+.ticketoo-pagination__link {
+	display: inline-block;
+	min-width: 2.25rem;
+	padding: 0.3rem 0.6rem;
+	border: 1px solid #d4d7e0;
+	border-radius: 0.35rem;
+	text-align: center;
+	text-decoration: none;
+	color: inherit;
+}
+
+.ticketoo-pagination__link:hover,
+.ticketoo-pagination__link:focus {
+	border-color: #2563eb;
+	color: #2563eb;
+}
+
+.ticketoo-pagination__link.is-active {
+	border-color: #2563eb;
+	background: #2563eb;
+	color: #fff;
+}
+
+/* Conversation. */
+
+.ticketoo-ticket__header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	margin-block-end: 1rem;
+}
+
+.ticketoo-ticket__subject {
+	flex: 1 1 auto;
+	margin: 0;
+	font-size: 1.2rem;
+}
+
+.ticketoo-close {
+	margin: 0;
+}
+
+.ticketoo-messages {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	margin: 0 0 1rem;
+	padding: 0;
+	list-style: none;
+}
+
+.ticketoo-message {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	max-width: min(40rem, 85%);
+	padding: 0.65rem 0.9rem;
+	border: 1px solid #e3e6ee;
+	border-radius: 0.75rem;
+	background: #f7f8fb;
+}
+
+.ticketoo-message--user {
+	align-self: flex-end;
+	border-color: #bfdbfe;
+	background: #eff6ff;
+}
+
+.ticketoo-message--agent {
+	align-self: flex-start;
+}
+
+.ticketoo-message__author {
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+
+.ticketoo-message__time {
+	color: #5b6172;
+	font-size: 0.75rem;
+}
+
+.ticketoo-message__body {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.ticketoo-message__body p {
+	margin: 0 0 0.5em;
+}
+
+.ticketoo-message__body p:last-child {
+	margin-block-end: 0;
+}
+
+.ticketoo-messages-nav {
+	display: flex;
+	gap: 1rem;
+	margin-block-end: 1rem;
+}
+
+.ticketoo-messages-nav__link {
+	color: #2563eb;
+}
+
+/* Forms. */
+
+.ticketoo-form,
+.ticketoo-reply {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 1rem;
+	border: 1px solid #e3e6ee;
+	border-radius: 0.5rem;
+	background: #fbfcfe;
+}
+
+.ticketoo-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	margin: 0;
+}
+
+.ticketoo-field label {
+	font-weight: 600;
+}
+
+.ticketoo-field input,
+.ticketoo-field textarea {
+	width: 100%;
+	padding: 0.5rem 0.65rem;
+	border: 1px solid #c9cdd9;
+	border-radius: 0.35rem;
+	background: #fff;
+	color: inherit;
+	font: inherit;
+}
+
+.ticketoo-field input:focus,
+.ticketoo-field textarea:focus {
+	border-color: #2563eb;
+	outline: 2px solid rgba(37, 99, 235, 0.35);
+	outline-offset: 1px;
+}
+
+.ticketoo-actions {
+	display: flex;
+	gap: 0.5rem;
+	margin: 0;
+}
+
+.ticketoo-button {
+	display: inline-block;
+	padding: 0.5rem 1rem;
+	border: 1px solid #2563eb;
+	border-radius: 0.35rem;
+	background: #2563eb;
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.ticketoo-button:hover,
+.ticketoo-button:focus {
+	background: #1d4ed8;
+}
+
+.ticketoo-button--close {
+	border-color: #b91c1c;
+	background: #fff;
+	color: #b91c1c;
+}
+
+.ticketoo-button--close:hover,
+.ticketoo-button--close:focus {
+	background: #b91c1c;
+	color: #fff;
+}
+
+/* Notices. */
+
+.ticketoo-notice {
+	margin-block-end: 1rem;
+	padding: 0.75rem 1rem;
+	border: 1px solid transparent;
+	border-radius: 0.5rem;
+}
+
+.ticketoo-notice--success {
+	border-color: #bbf7d0;
+	background: #f0fdf4;
+	color: #15803d;
+}
+
+.ticketoo-notice--error {
+	border-color: #fecaca;
+	background: #fef2f2;
+	color: #b91c1c;
+}
+
+/* Guest notice. */
+
+.ticketoo-guest-notice {
+	padding: 1.25rem;
+	border: 1px solid #e3e6ee;
+	border-radius: 0.5rem;
+	background: #f7f8fb;
+}
+
+.ticketoo-guest-notice__text {
+	margin: 0 0 0.75rem;
+}
+
+.ticketoo-guest-notice__actions {
+	margin: 0;
+}
