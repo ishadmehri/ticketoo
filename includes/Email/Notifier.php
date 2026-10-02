@@ -193,8 +193,8 @@ class Notifier {
 	 * Notifies the owner that the ticket was auto-closed and how to
 	 * reopen it.
 	 *
-	 * Nothing fires this hook yet: Task 13's sweep calls it directly
-	 * after closing a stale ticket.
+	 * Not wired to a hook: AutoClose's sweep calls it directly after it
+	 * closes a stale ticket.
 	 *
 	 * @since 0.1.0
 	 * @param int $ticket_id Ticket id.

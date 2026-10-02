@@ -84,6 +84,14 @@ class SettingsPage {
 	const OPTION_COUNTER_REFRESH_SECONDS = 'ticketoo_counter_refresh_seconds';
 
 	/**
+	 * Hard ceiling for the attachment size limit: the sanitizer clamps to
+	 * it and the number field advertises it, so the two can never drift.
+	 *
+	 * @var int
+	 */
+	const ATTACHMENT_MAX_MB_LIMIT = 100;
+
+	/**
 	 * Adds the Settings submenu and registers every option with its
 	 * per-option sanitize callback and default.
 	 *
@@ -182,7 +190,7 @@ class SettingsPage {
 	 * @return int Sanitized limit in MB.
 	 */
 	public static function sanitize_attachment_max_mb( $value ): int {
-		return min( 100, absint( $value ) );
+		return min( self::ATTACHMENT_MAX_MB_LIMIT, absint( $value ) );
 	}
 
 	/**
@@ -340,6 +348,8 @@ class SettingsPage {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Ticketoo Settings', 'ticketoo' ); ?></h1>
 
+			<?php settings_errors(); ?>
+
 			<form method="post" action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>">
 				<?php settings_fields( self::OPTION_GROUP ); ?>
 
@@ -362,7 +372,7 @@ class SettingsPage {
 						'number',
 						array(
 							'min'  => '0',
-							'max'  => '100',
+							'max'  => (string) self::ATTACHMENT_MAX_MB_LIMIT,
 							'step' => '1',
 						)
 					);
@@ -372,7 +382,7 @@ class SettingsPage {
 						__( 'Comma-separated file extensions, e.g. jpg,png,pdf.', 'ticketoo' ),
 						'text',
 						array(
-							'placeholder' => 'jpg,jpeg,png,gif,pdf,zip,txt,docx',
+							'placeholder' => (string) self::defaults()[ self::OPTION_ATTACHMENT_TYPES ],
 						)
 					);
 					self::field_row(

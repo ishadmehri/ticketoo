@@ -71,6 +71,12 @@ Deleting the plugin runs the uninstall routine: it drops the plugin's custom
 tables, removes the agent role and capability, deletes its options and
 unschedules the cron event. Export anything you want to keep first.
 
+= Are uploaded attachments deleted on uninstall? =
+
+No. Attachment files stored under `uploads/ticketoo/` are left in place, so
+nothing you or your customers uploaded is destroyed by accident. After
+uninstalling, delete that directory manually if you want the files gone.
+
 == Changelog ==
 
 = 0.1.0 =

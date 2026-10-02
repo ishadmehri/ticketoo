@@ -30,3 +30,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generated `languages/ticketoo.pot`.
 - Uninstall routine dropping plugin tables, role, capability, options and the
   scheduled cron event; `readme.txt` and this changelog.
+
+[0.1.0]: https://github.com/ishadmehri/ticketoo/releases/tag/v0.1.0

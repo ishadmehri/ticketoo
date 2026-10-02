@@ -2,9 +2,9 @@
 
 ## Prerequisites
 
-- **Docker** ΓÇö `@wordpress/env` runs WordPress, MySQL and WP-CLI in containers.
-- **Node.js** (with npm) ΓÇö drives the env and gate scripts.
-- **PHP is not required on the host** ΓÇö PHPUnit and PHPCS run inside the
+- **Docker** — `@wordpress/env` runs WordPress, MySQL and WP-CLI in containers.
+- **Node.js** (with npm) — drives the env and gate scripts.
+- **PHP is not required on the host** — PHPUnit and PHPCS run inside the
   container (`vendor/bin/...`), installed by Composer there.
 
 ## Setup
@@ -24,8 +24,8 @@ Other env commands: `npm run env:stop`, `npm run env:down` (remove containers).
 ## Tests and lint
 
 ```sh
-npm run phpunit        # PHPUnit suite (97 tests) ΓÇö wp-env run cli ... phpunit
-npm run phpcs          # WordPress-Coding-Standards ΓÇö wp-env run cli ... phpcs
+npm run phpunit        # PHPUnit suite (97 tests) — wp-env run cli ... phpunit
+npm run phpcs          # WordPress-Coding-Standards — wp-env run cli ... phpcs
 node --check assets/js/frontend.js   # syntax check for shipped JS
 ```
 
@@ -39,10 +39,10 @@ npm run env:start
 npx wp-env run cli sh -c "find /var/www/html/wp-content/uploads/ticketoo -mindepth 1 ! -name '.*' -exec rm -rf {} +"
 ```
 
-Dotfiles such as the plugin's `.htaccess` (deny-all rules) are kept ΓÇö the test
+Dotfiles such as the plugin's `.htaccess` (deny-all rules) are kept — the test
 helper `stored_filenames()` skips them by design.
 
-> **Warning ΓÇö never run `wp plugin uninstall ticketoo` in the dev
+> **Warning — never run `wp plugin uninstall ticketoo` in the dev
 > environment.** The plugin's directory *is* the repository root (bind
 > mount), and WP-CLI's uninstall deletes that directory's contents. Use
 > `wp plugin deactivate ticketoo` for a clean state; run the activator
@@ -56,7 +56,7 @@ helper `stored_filenames()` skips them by design.
   (`esc_html__`, `esc_attr__`, `__`, ...).
 - Class files use PSR-4-style names (`Autoloader.php`, `Plugin.php`, ...), so
   the `WordPress.Files.FileName` rule is excluded for `includes/` and
-  `integrations/` (the plugin ships its own autoloader ΓÇö no Composer at
+  `integrations/` (the plugin ships its own autoloader — no Composer at
   runtime).
 - `assets/js/*` is excluded from PHPCS: it is plain ES5-style vanilla JS with
   no build step (ADR 0004) and is syntax-checked with `node --check`.
@@ -91,9 +91,9 @@ Notes:
 
 ## Shortcode
 
-- `[ticketoo]` ΓÇö ticket **list** (auth required; guests see a notice).
-- `[ticketoo view="form"]` ΓÇö new-ticket form (works without JS).
-- `[ticketoo view="ticket" id="N"]` ΓÇö single conversation.
+- `[ticketoo]` — ticket **list** (auth required; guests see a notice).
+- `[ticketoo view="form"]` — new-ticket form (works without JS).
+- `[ticketoo view="ticket" id="N"]` — single conversation.
 - Deep links use `?ticketoo_ticket=N` (+ `&token=...` for guests) and are
   built from `home_url()`, so put a shortcode page in front of your site
   (the dev env sets page 4 as the static front page) for email links to land
@@ -108,15 +108,15 @@ Twenty-Five, plugin activated.
 
 | # | Step | Result |
 | --- | --- | --- |
-| 1 | Front page renders, `#ticketoo-form` present | **PASS** ΓÇö `GET /` 200 (68 KB), form markup server-rendered |
-| 2 | Guest creates ticket (`POST /tickets`) | **PASS** ΓÇö `201 Created`, `{"id":1,...}` |
-| 3 | Email captured in logs | **PASS** ΓÇö `ticketoo-smoke-mail.log`: admin "New ticket #1" + guest confirmation with token link |
-| 4 | Guest opens token link | **PASS** ΓÇö `200`, conversation + reply form rendered |
-| 5 | Agent replies from wp-admin panel (cookie + `wp_rest` nonce) | **PASS** ΓÇö `201`, `is_agent:1`; "Support replied" email with token link captured |
-| 6 | Guest attempts status change | **PASS (expected 403)** ΓÇö `ticketoo_rest_forbidden`: "Guests cannot change the ticket status." (spec: owner-only) |
-| 7 | Logged-in owner creates and closes a ticket | **PASS** ΓÇö create `201` (owner attributed), `POST /status` `200` `{"status":"closed"}` |
-| 8 | Auto-close sweep (`wp cron event run ticketoo_auto_close_sweep`) | **PASS** ΓÇö 16-day-stale ticket ΓåÆ `closed`, `last_activity_at` reset, "Ticket #1 has been closed" email captured |
-| 9 | Uninstall live-run (tables dropped, cron unscheduled, options deleted) | **PASS** ΓÇö verified then plugin reactivated (see warning above about `wp plugin uninstall` in dev) |
+| 1 | Front page renders, `#ticketoo-form` present | **PASS** — `GET /` 200 (68 KB), form markup server-rendered |
+| 2 | Guest creates ticket (`POST /tickets`) | **PASS** — `201 Created`, `{"id":1,...}` |
+| 3 | Email captured in logs | **PASS** — `ticketoo-smoke-mail.log`: admin "New ticket #1" + guest confirmation with token link |
+| 4 | Guest opens token link | **PASS** — `200`, conversation + reply form rendered |
+| 5 | Agent replies from wp-admin panel (cookie + `wp_rest` nonce) | **PASS** — `201`, `is_agent:1`; "Support replied" email with token link captured |
+| 6 | Guest attempts status change | **PASS (expected 403)** — `ticketoo_rest_forbidden`: "Guests cannot change the ticket status." (spec: owner-only) |
+| 7 | Logged-in owner creates and closes a ticket | **PASS** — create `201` (owner attributed), `POST /status` `200` `{"status":"closed"}` |
+| 8 | Auto-close sweep (`wp cron event run ticketoo_auto_close_sweep`) | **PASS** — 16-day-stale ticket → `closed`, `last_activity_at` reset, "Ticket #1 has been closed" email captured |
+| 9 | Uninstall live-run (tables dropped, cron unscheduled, options deleted) | **PASS** — verified then plugin reactivated (see warning above about `wp plugin uninstall` in dev) |
 
 Mail delivery itself uses `sendmail` inside the container (not configured);
 the `smoke-mail-log` mu-plugin captures every `wp_mail()` payload, which is
@@ -126,6 +126,6 @@ what the table verifies.
 
 Run for every release; all three must be green:
 
-1. `npm run phpunit` ΓåÆ `OK (97 tests, 471 assertions)`
-2. `npm run phpcs` ΓåÆ `24 / 24 (100%)` ΓÇö 0 errors, 0 warnings
-3. `node --check` on `assets/js/*.js` ΓåÆ 3/3 clean
+1. `npm run phpunit` → `OK (97 tests, 471 assertions)`
+2. `npm run phpcs` → `24 / 24 (100%)` — 0 errors, 0 warnings
+3. `node --check` on `assets/js/*.js` → 3/3 clean

@@ -16,6 +16,7 @@ use WP_REST_Response;
 use WP_REST_Server;
 use Ticketoo\Activator;
 use Ticketoo\Admin\Capabilities;
+use Ticketoo\Admin\SettingsPage;
 use Ticketoo\Database\MessageRepository;
 use Ticketoo\Database\TicketRepository;
 use Ticketoo\Guest\TokenAccess;
@@ -1100,26 +1101,15 @@ class FrontendController {
 	}
 
 	/**
-	 * Allowed attachment extensions from the ticketoo_attachment_types
-	 * option (CSV, default jpg,jpeg,png,gif,pdf,zip,txt,docx).
+	 * Allowed attachment extensions, read through the SettingsPage
+	 * accessor so the default lives in one place only.
 	 *
 	 * An empty option fails closed: nothing is accepted.
 	 *
 	 * @return string[] Lowercased extension list.
 	 */
 	private static function allowed_attachment_types(): array {
-		$raw   = (string) get_option( 'ticketoo_attachment_types', 'jpg,jpeg,png,gif,pdf,zip,txt,docx' );
-		$types = array();
-
-		foreach ( explode( ',', $raw ) as $type ) {
-			$type = strtolower( trim( $type ) );
-
-			if ( '' !== $type ) {
-				$types[] = $type;
-			}
-		}
-
-		return $types;
+		return SettingsPage::get_attachment_types();
 	}
 
 	/**
@@ -1142,7 +1132,7 @@ class FrontendController {
 			return array();
 		}
 
-		$max_mb    = max( 0, (int) get_option( 'ticketoo_attachment_max_mb', 5 ) );
+		$max_mb    = max( 0, SettingsPage::get_attachment_max_mb() );
 		$max_bytes = $max_mb * 1024 * 1024;
 		$allowed   = self::allowed_attachment_types();
 		$uploads   = array();
@@ -1474,14 +1464,13 @@ class FrontendController {
 	}
 
 	/**
-	 * Whether guest ticket creation is enabled (option default: enabled).
+	 * Whether guest ticket creation is enabled, read through the
+	 * SettingsPage accessor (option default: enabled).
 	 *
 	 * @return bool True when guests may open tickets.
 	 */
 	private static function guests_allowed(): bool {
-		$raw = get_option( 'ticketoo_allow_guests', '1' );
-
-		return in_array( $raw, array( 1, '1', true, 'true', 'yes', 'on' ), true );
+		return SettingsPage::get_allow_guests();
 	}
 
 	/**

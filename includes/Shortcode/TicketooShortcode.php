@@ -11,6 +11,7 @@ declare( strict_types = 1 );
 namespace Ticketoo\Shortcode;
 
 use Ticketoo\Admin\Capabilities;
+use Ticketoo\Admin\SettingsPage;
 use Ticketoo\Database\MessageRepository;
 use Ticketoo\Database\TicketRepository;
 use Ticketoo\Guest\TokenAccess;
@@ -510,16 +511,15 @@ class TicketooShortcode {
 	}
 
 	/**
-	 * Whether guests may open tickets (option ticketoo_allow_guests, default on).
+	 * Whether guests may open tickets, read through the SettingsPage
+	 * accessor (option ticketoo_allow_guests, default on).
 	 *
-	 * Same truthiness rule as FrontendController::permission_create_ticket().
+	 * Same decision as FrontendController::permission_create_ticket().
 	 *
 	 * @return bool True when guest ticket creation is enabled.
 	 */
 	private static function guests_allowed(): bool {
-		$raw = get_option( 'ticketoo_allow_guests', '1' );
-
-		return in_array( $raw, array( 1, '1', true, 'true', 'yes', 'on' ), true );
+		return SettingsPage::get_allow_guests();
 	}
 
 	/**
