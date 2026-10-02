@@ -32,6 +32,14 @@ class Test_Shortcode extends Ticketoo_Database_TestCase {
 	private ?string $request_method = null;
 
 	/**
+	 * REQUEST_URI as the harness provides it (unset in CLI), saved so
+	 * tear_down() can restore it after a test injects a permalink.
+	 *
+	 * @var string|null
+	 */
+	private ?string $request_uri = null;
+
+	/**
 	 * Recreates the plugin's tables and clears shortcode view query args.
 	 *
 	 * @return void
@@ -43,6 +51,10 @@ class Test_Shortcode extends Ticketoo_Database_TestCase {
 
 		$this->request_method = isset( $_SERVER['REQUEST_METHOD'] ) && is_string( $_SERVER['REQUEST_METHOD'] )
 			? $_SERVER['REQUEST_METHOD']
+			: null;
+
+		$this->request_uri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] )
+			? $_SERVER['REQUEST_URI']
 			: null;
 
 		$this->clear_query();
@@ -76,6 +88,12 @@ class Test_Shortcode extends Ticketoo_Database_TestCase {
 			unset( $_SERVER['REQUEST_METHOD'] );
 		} else {
 			$_SERVER['REQUEST_METHOD'] = $this->request_method;
+		}
+
+		if ( null === $this->request_uri ) {
+			unset( $_SERVER['REQUEST_URI'] );
+		} else {
+			$_SERVER['REQUEST_URI'] = $this->request_uri;
 		}
 
 		parent::tear_down();
@@ -331,6 +349,136 @@ class Test_Shortcode extends Ticketoo_Database_TestCase {
 
 		$this->assertStringNotContainsString( 'data-close-ticket=', $html, 'A closed ticket must not offer the close control.' );
 		$this->assertStringContainsString( 'id="ticketoo-reply"', $html, 'Replying stays possible (reply reopens the conversation).' );
+	}
+
+	/**
+	 * A percent-encoded REQUEST_URI (non-ASCII permalinks — this project
+	 * targets Persian/RTL paths) must survive untouched into the form
+	 * action, the hidden return URL and every generated link.
+	 */
+	public function test_percent_encoded_request_uri_survives_into_links(): void {
+		$uri = '/%D8%AA%DB%8C%DA%A9%D8%AA-locale/';
+
+		$_SERVER['REQUEST_URI'] = $uri;
+		wp_set_current_user( 0 );
+
+		$html = $this->render( '[ticketoo view="form"]' );
+
+		$action = esc_url( home_url( $uri ) );
+
+		$this->assertStringContainsString(
+			'%D8%AA%DB%8C%DA%A9%D8%AA-locale',
+			$html,
+			'A percent-encoded REQUEST_URI must not be mangled in rendered output.'
+		);
+		$this->assertStringContainsString(
+			'action="' . $action . '"',
+			$html,
+			'The form action must carry the untouched encoded path (no-JS submit target).'
+		);
+		$this->assertStringContainsString(
+			'value="' . $action . '"',
+			$html,
+			'ticketoo_return must carry the untouched encoded path (PRG redirect target).'
+		);
+	}
+
+	/**
+	 * base_context() and load_template()'s explicit assignment list must
+	 * stay in sync: every context key reaches templates as a local
+	 * variable, and nothing else does.
+	 */
+	public function test_template_context_keys_match_base_context(): void {
+		$user = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+
+		wp_set_current_user( $user );
+
+		$override_dir = $this->theme_override_dir();
+		$override     = $override_dir . '/list.php';
+
+		wp_mkdir_p( $override_dir );
+		file_put_contents( $override, '<?php echo wp_json_encode( array_keys( get_defined_vars() ) );' );
+		$this->theme_overrides[] = $override;
+
+		$html = $this->render( '[ticketoo view="list"]' );
+
+		$defined = json_decode( trim( $html ), true );
+
+		$this->assertIsArray( $defined, 'The probe template must dump its local variable names as JSON.' );
+
+		$context_method = new ReflectionMethod( TicketooShortcode::class, 'base_context' );
+		$context_method->setAccessible( true );
+		$expected = array_keys( $context_method->invoke( null ) );
+
+		// $name, $context and $file are load_template()'s own locals, not context keys.
+		$received = array_values( array_diff( $defined, array( 'name', 'context', 'file' ) ) );
+
+		sort( $expected );
+		sort( $received );
+
+		$this->assertSame(
+			$expected,
+			$received,
+			'base_context() keys and load_template()\'s assignment list must match exactly.'
+		);
+	}
+
+	/**
+	 * The conversation must render the newest page with a total that counts
+	 * every message (single-fetch refactor pin).
+	 */
+	public function test_conversation_second_page_renders_with_total(): void {
+		$user      = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$ticket_id = $this->create_ticket(
+			array(
+				'user_id' => $user,
+				'email'   => 'p@example.com',
+			)
+		);
+
+		for ( $i = 1; $i <= 55; $i++ ) {
+			MessageRepository::add( $ticket_id, $user, 'p@example.com', 0, sprintf( 'Message number %02d', $i ) );
+		}
+
+		wp_set_current_user( $user );
+
+		$_GET['ticketoo_msg_page'] = '2';
+
+		$html = $this->render( '[ticketoo view="ticket" id="' . $ticket_id . '"]' );
+
+		unset( $_GET['ticketoo_msg_page'] );
+
+		$this->assertStringContainsString( 'Message number 55', $html, 'Page 2 must render the newest slice.' );
+		$this->assertStringNotContainsString( 'Message number 01', $html, 'Page 1 must not leak into page 2.' );
+		$this->assertStringContainsString( 'ticketoo_msg_page=1', $html, 'The messages nav must link back to page 1 (total counts every message).' );
+	}
+
+	/**
+	 * A stale message-page link must clamp back to the last real page.
+	 */
+	public function test_conversation_stale_page_clamps_to_last(): void {
+		$user      = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$ticket_id = $this->create_ticket(
+			array(
+				'user_id' => $user,
+				'email'   => 's@example.com',
+			)
+		);
+
+		for ( $i = 1; $i <= 55; $i++ ) {
+			MessageRepository::add( $ticket_id, $user, 's@example.com', 0, sprintf( 'Message number %02d', $i ) );
+		}
+
+		wp_set_current_user( $user );
+
+		$_GET['ticketoo_msg_page'] = '99';
+
+		$html = $this->render( '[ticketoo view="ticket" id="' . $ticket_id . '"]' );
+
+		unset( $_GET['ticketoo_msg_page'] );
+
+		$this->assertStringContainsString( 'Message number 55', $html, 'A stale page link must clamp back to the last real page.' );
+		$this->assertStringNotContainsString( 'Message number 01', $html );
 	}
 
 	public function test_nojs_form_post_creates_ticket(): void {

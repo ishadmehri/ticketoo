@@ -341,11 +341,18 @@ class TicketooShortcode {
 			return self::render_guest_view( __( 'You are not allowed to view this ticket. Use the link from your email or log in.', 'ticketoo' ) );
 		}
 
-		$known       = MessageRepository::for_ticket( $ticket->id );
-		$total       = (int) $known['total'];
-		$total_pages = max( 1, (int) ceil( $total / self::MESSAGES_PER_PAGE ) );
-		$page        = min( max( 1, self::query_int( $query, 'ticketoo_msg_page' ) ), $total_pages );
-		$messages    = MessageRepository::for_ticket( $ticket->id, $page, self::MESSAGES_PER_PAGE );
+		// A single fetch serves both items and total: for_ticket() always
+		// returns the unpaginated count, so only a stale page link needs a
+		// second, clamped fetch (the first call's rows are never discarded).
+		$requested_page = max( 1, self::query_int( $query, 'ticketoo_msg_page' ) );
+		$messages       = MessageRepository::for_ticket( $ticket->id, $requested_page, self::MESSAGES_PER_PAGE );
+		$total          = (int) $messages['total'];
+		$total_pages    = max( 1, (int) ceil( $total / self::MESSAGES_PER_PAGE ) );
+		$page           = min( $requested_page, $total_pages );
+
+		if ( $page !== $requested_page ) {
+			$messages = MessageRepository::for_ticket( $ticket->id, $page, self::MESSAGES_PER_PAGE );
+		}
 
 		$context                           = self::base_context();
 		$context['ticket']                 = $ticket;
@@ -518,11 +525,17 @@ class TicketooShortcode {
 	/**
 	 * The current request URL as an absolute URL.
 	 *
+	 * REQUEST_URI is sanitized as a URL (esc_url_raw), never as text:
+	 * sanitize_text_field() strips every percent-encoded octet, which would
+	 * corrupt non-ASCII permalinks (this project targets Persian/RTL paths)
+	 * and break form actions, filter/pagination hrefs, ticketoo_return
+	 * redirect targets, wp_login_url() and ticket_url() bases.
+	 *
 	 * @return string Base URL for building filter, pagination and form links.
 	 */
 	private static function current_url(): string {
 		$uri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+			? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) )
 			: '/';
 
 		return home_url( '' === $uri ? '/' : $uri );
