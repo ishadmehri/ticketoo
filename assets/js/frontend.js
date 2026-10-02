@@ -14,6 +14,9 @@
  *   POST (form.submit() bypasses the submit event, so nothing loops).
  * - Once the server has answered, the action is never replayed; failures are
  *   shown as `.ticketoo-notice` blocks using ticketooFrontend.i18n strings.
+ * - While a form request is in flight the form is locked (submit button
+ *   disabled plus a busy flag); re-submits are ignored so create/reply
+ *   cannot fire a second REST POST from a fast double click or Enter.
  *
  * The payload contract is `window.ticketooFrontend = {restUrl, nonce, i18n}`
  * (see TicketooShortcode::enqueue_assets()). No guest token is ever stored
@@ -34,8 +37,15 @@
 	// Mirrors TicketooShortcode::LIST_PER_PAGE so pagination stays in sync.
 	var PER_PAGE = 20;
 
-	// Sequence number of the newest list request; stale answers are dropped.
-	var listSequence = 0;
+	// Sequence number of the newest list request per shortcode root; a stale
+	// answer is dropped without disturbing a sibling root's request.
+	function nextSequence( root ) {
+		if ( ! root.ticketooSequence ) {
+			root.ticketooSequence = 0;
+		}
+
+		return ++root.ticketooSequence;
+	}
 
 	function text( key, fallback ) {
 		var strings = config.i18n || {};
@@ -162,6 +172,24 @@
 		window.HTMLFormElement.prototype.submit.call( form );
 	}
 
+	function isBusy( form ) {
+		return true === form.ticketooBusy;
+	}
+
+	/**
+	 * Marks a form as in flight (or idle again). The flag stops a second
+	 * submit — a fast double click or Enter in a text field — from firing a
+	 * second REST POST, and the disabled button gives the same visual
+	 * feedback as a native submission while the request runs.
+	 */
+	function setBusy( form, busy, button ) {
+		form.ticketooBusy = busy;
+
+		if ( button ) {
+			button.disabled = busy;
+		}
+	}
+
 	/**
 	 * Inserts (and replaces) a .ticketoo-notice next to the given element,
 	 * mirroring the block TicketooShortcode::notice_html() prints server-side.
@@ -216,16 +244,40 @@
 	 * Sends one mutating REST request for a form. `anchor` positions error
 	 * notices, `noticeCode` names the ticketoo_notice used if the DOM update
 	 * itself fails after a successful response.
+	 *
+	 * The form is locked for the whole flight; a re-submit while it is busy
+	 * is ignored (create/reply would otherwise duplicate server-side) and
+	 * the native fallback can fire only once.
 	 */
 	function mutate( url, options, form, anchor, noticeCode, onSuccess ) {
+		if ( isBusy( form ) ) {
+			return;
+		}
+
 		var button = submitButton( form );
 		var answered = false;
+		var nativeFired = false;
 
-		function fallbackToNative() {
-			if ( button ) {
-				button.disabled = false;
+		setBusy( form, true, button );
+
+		function release() {
+			if ( ! isBusy( form ) ) {
+				return;
 			}
 
+			setBusy( form, false, button );
+		}
+
+		function fallbackToNative() {
+			if ( nativeFired ) {
+				return;
+			}
+
+			nativeFired = true;
+			// Re-enable before submitting: form.submit() bypasses the submit
+			// event, so this cannot loop, and a page restored from the
+			// back/forward cache must not come back with the form locked.
+			release();
 			nativeSubmit( form );
 		}
 
@@ -247,9 +299,7 @@
 						return null;
 					} )
 					.then( function ( json ) {
-						if ( button ) {
-							button.disabled = false;
-						}
+						release();
 
 						if ( ! response.ok ) {
 							showError( anchor, json );
@@ -267,9 +317,7 @@
 				fallbackToNative();
 			} )
 			.catch( function () {
-				if ( button ) {
-					button.disabled = false;
-				}
+				release();
 
 				if ( answered ) {
 					// The server answered, so replaying could duplicate the
@@ -324,10 +372,10 @@
 			return;
 		}
 
-		var sequence = ++listSequence;
+		var sequence = nextSequence( root );
 
 		function stale() {
-			return sequence !== listSequence;
+			return sequence !== root.ticketooSequence;
 		}
 
 		function done() {
@@ -571,30 +619,58 @@
 	}
 
 	/**
-	 * Re-fetches the list in its current filter/page state, used after a
-	 * ticket was created on a page that shows list + form together.
+	 * The .ticketoo list root nearest to `root` in document order: the last
+	 * list root preceding it, or — when none precedes — the first that
+	 * follows. Each shortcode view renders its own .ticketoo root, so the
+	 * create form finds its sibling list here instead of inside itself.
 	 */
-	function refreshList() {
-		var list = document.querySelector( '.ticketoo-list' );
+	function nearestListRoot( root ) {
+		var roots = document.querySelectorAll( '.ticketoo.ticketoo-view-list' );
+		var preceding = null;
 
-		if ( ! list ) {
+		for ( var i = 0; i < roots.length; i++ ) {
+			if ( root && root.compareDocumentPosition ) {
+				// Node.DOCUMENT_POSITION_PRECEDING (2): roots[i] sits
+				// before root in document order.
+				if ( root.compareDocumentPosition( roots[ i ] ) & 2 ) {
+					preceding = roots[ i ];
+					continue;
+				}
+			}
+
+			return preceding || roots[ i ];
+		}
+
+		return preceding;
+	}
+
+	/**
+	 * Re-fetches the list in its current filter/page state, used after a
+	 * ticket was created on a page that shows list + form together. The
+	 * lookup stays inside the shortcode root that owns the trigger and only
+	 * then falls back to the nearest list root, so a page carrying several
+	 * lists refreshes the one belonging to this form — never the first
+	 * .ticketoo-list found document-wide.
+	 */
+	function refreshList( root ) {
+		var listRoot = root;
+
+		if ( ! root || ! root.querySelector || ! root.querySelector( '.ticketoo-list' ) ) {
+			listRoot = nearestListRoot( root );
+		}
+
+		if ( ! listRoot || ! listRoot.querySelector( '.ticketoo-list' ) ) {
 			return;
 		}
 
-		var root = closest( list, '.ticketoo' );
-
-		if ( ! root ) {
-			return;
-		}
-
-		var status = currentStatus( root );
-		var page = currentPage( root );
+		var status = currentStatus( listRoot );
+		var page = currentPage( listRoot );
 		var browserUrl = withArgs( window.location.href, {
 			ticketoo_status: status || null,
 			ticketoo_page: page > 1 ? page : null
 		} );
 
-		loadList( root, status, page, browserUrl );
+		loadList( listRoot, status, page, browserUrl );
 	}
 
 	/* ---------- new ticket form ---------- */
@@ -638,7 +714,7 @@
 			text( 'created', 'Your ticket has been created.' ),
 			loggedIn && url ? url : ''
 		);
-		refreshList();
+		refreshList( root );
 	}
 
 	/* ---------- reply form ---------- */
@@ -880,6 +956,12 @@
 		if ( 'ticketoo-form' === form.id ) {
 			event.preventDefault();
 
+			// A second submit while the first request is in flight would
+			// create a duplicate ticket — ignore it.
+			if ( isBusy( form ) ) {
+				return;
+			}
+
 			try {
 				handleCreate( form );
 			} catch ( error ) {
@@ -891,6 +973,11 @@
 
 		if ( 'ticketoo-reply' === form.id ) {
 			event.preventDefault();
+
+			// Same guard as the create form: a duplicate reply POST.
+			if ( isBusy( form ) ) {
+				return;
+			}
 
 			try {
 				handleReply( form );
