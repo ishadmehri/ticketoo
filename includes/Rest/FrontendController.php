@@ -1,6 +1,7 @@
 <?php
 /**
- * Public REST controller: ticket create, list, read and reply.
+ * Public REST controller: ticket create, list, read and reply, status and
+ * assignment changes, and secure attachment upload/download.
  *
  * @package Ticketoo
  */
@@ -13,10 +14,12 @@ use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
+use Ticketoo\Activator;
 use Ticketoo\Admin\Capabilities;
 use Ticketoo\Database\MessageRepository;
 use Ticketoo\Database\TicketRepository;
 use Ticketoo\Guest\TokenAccess;
+use Ticketoo\Model\Attachment;
 use Ticketoo\Model\Message;
 use Ticketoo\Model\Ticket;
 
@@ -32,13 +35,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 class FrontendController {
 
 	/**
-	 * Registers the four public routes on rest_api_init.
+	 * Registers the public routes on rest_api_init and the raw-download
+	 * serve hook.
 	 *
 	 * Every route carries an explicit permission_callback.
 	 *
 	 * @return void
 	 */
 	public static function register_routes(): void {
+		// Attachment downloads must reach the client as raw bytes instead of
+		// JSON-encoded data; see serve_raw_response().
+		add_filter( 'rest_pre_serve_request', array( __CLASS__, 'serve_raw_response' ), 10, 2 );
+
 		register_rest_route(
 			'ticketoo/v1',
 			'/tickets',
@@ -146,6 +154,65 @@ class FrontendController {
 				),
 			)
 		);
+
+		register_rest_route(
+			'ticketoo/v1',
+			'/tickets/(?P<id>\d+)/status',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'set_ticket_status' ),
+				'permission_callback' => array( __CLASS__, 'permission_change_status' ),
+				'args'                => array(
+					'id'     => array(
+						'type' => 'integer',
+					),
+					'status' => array(
+						'type'        => 'string',
+						'description' => __( 'New status slug; must exist in the ticketoo_statuses list.', 'ticketoo' ),
+						'required'    => true,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'ticketoo/v1',
+			'/tickets/(?P<id>\d+)/assign',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'assign_ticket' ),
+				'permission_callback' => array( __CLASS__, 'permission_assign_ticket' ),
+				'args'                => array(
+					'id'      => array(
+						'type' => 'integer',
+					),
+					'user_id' => array(
+						'type'        => 'integer',
+						'description' => __( 'Agent user id to assign the ticket to, or 0 to unassign.', 'ticketoo' ),
+						'required'    => true,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'ticketoo/v1',
+			'/attachments/(?P<id>\d+)',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'download_attachment' ),
+				'permission_callback' => array( __CLASS__, 'permission_access_attachment' ),
+				'args'                => array(
+					'id'    => array(
+						'type' => 'integer',
+					),
+					'token' => array(
+						'type'        => 'string',
+						'description' => __( 'Guest bearer token for the ticket this attachment belongs to.', 'ticketoo' ),
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -224,6 +291,99 @@ class FrontendController {
 		}
 
 		return self::ticket_not_found();
+	}
+
+	/**
+	 * Permission callback for POST /tickets/{id}/status: agents
+	 * (ticketoo_manage_tickets) may pick any allowed status, the logged-in
+	 * owner of the ticket may only close it, and guests are refused outright
+	 * (spec §5 lists read, reply and download as the only guest routes).
+	 *
+	 * A missing ticket answers 404; a logged-in user without a claim on the
+	 * ticket also answers 404 so ticket ids cannot be probed.
+	 *
+	 * @param WP_REST_Request $request Request instance.
+	 * @return bool|WP_Error True when allowed, otherwise a 403/404 error.
+	 */
+	public static function permission_change_status( WP_REST_Request $request ): bool|WP_Error {
+		$ticket = TicketRepository::find( (int) $request->get_param( 'id' ) );
+
+		if ( null === $ticket ) {
+			return self::ticket_not_found();
+		}
+
+		if ( current_user_can( Capabilities::CAP ) ) {
+			return true;
+		}
+
+		$current_user_id = get_current_user_id();
+
+		if ( 0 === $current_user_id ) {
+			return new WP_Error(
+				'ticketoo_rest_forbidden',
+				__( 'Guests cannot change the ticket status.', 'ticketoo' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		if ( $ticket->user_id === $current_user_id ) {
+			return true;
+		}
+
+		return self::ticket_not_found();
+	}
+
+	/**
+	 * Permission callback for POST /tickets/{id}/assign: only holders of
+	 * ticketoo_manage_tickets may assign a ticket; every other requester —
+	 * including guests — answers 403 regardless of the ticket.
+	 *
+	 * @return bool|WP_Error True when allowed, otherwise a 403 error.
+	 */
+	public static function permission_assign_ticket(): bool|WP_Error {
+		if ( current_user_can( Capabilities::CAP ) ) {
+			return true;
+		}
+
+		return new WP_Error(
+			'ticketoo_rest_forbidden',
+			__( 'Sorry, you are not allowed to assign tickets.', 'ticketoo' ),
+			array( 'status' => 403 )
+		);
+	}
+
+	/**
+	 * Permission callback for GET /attachments/{id}: the same access rule as
+	 * reading the owning ticket — agent capability, ownership, or a verified
+	 * guest token (spec §5).
+	 *
+	 * A missing attachment (or one whose ticket the requester may not see)
+	 * answers 404 so attachment ids cannot be probed; a guest holding a
+	 * wrong or missing token answers 403.
+	 *
+	 * @param WP_REST_Request $request Request instance.
+	 * @return bool|WP_Error True when allowed, otherwise a 403/404 error.
+	 */
+	public static function permission_access_attachment( WP_REST_Request $request ): bool|WP_Error {
+		$ticket = self::attachment_ticket( (int) $request->get_param( 'id' ) );
+
+		if ( null === $ticket ) {
+			return self::attachment_not_found();
+		}
+
+		if ( self::current_user_can_access( $ticket, $request ) ) {
+			return true;
+		}
+
+		if ( 0 === get_current_user_id() ) {
+			return new WP_Error(
+				'ticketoo_rest_forbidden',
+				__( 'A valid ticket token is required.', 'ticketoo' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return self::attachment_not_found();
 	}
 
 	/**
@@ -420,8 +580,8 @@ class FrontendController {
 	}
 
 	/**
-	 * Handles GET /tickets/{id}: one ticket, its paged conversation and an
-	 * empty attachment list (uploads arrive with Task 6).
+	 * Handles GET /tickets/{id}: one ticket, its paged conversation and the
+	 * ticket's attachment list.
 	 *
 	 * The permission callback has already authorized the request.
 	 *
@@ -455,7 +615,7 @@ class FrontendController {
 			$data['messages'][] = self::message_payload( $message );
 		}
 
-		$data['attachments'] = array();
+		$data['attachments'] = self::ticket_attachments( $ticket->id );
 
 		/**
 		 * Filters a single-ticket REST response body before it is sent.
@@ -470,15 +630,19 @@ class FrontendController {
 	}
 
 	/**
-	 * Handles POST /tickets/{id}/messages: stores a reply and touches the
-	 * ticket's activity timestamps through MessageRepository::add().
+	 * Handles POST /tickets/{id}/messages: stores a reply, stores any
+	 * attached files (`files[]`) and touches the ticket's activity
+	 * timestamps through MessageRepository::add().
 	 *
-	 * File uploads (`files[]`) may accompany the request but are handled in
-	 * Task 6; this endpoint stores the text content only.
+	 * Every file is validated (type, option allow-list, size cap) before the
+	 * message is written, so one rejected file rejects the whole request
+	 * with nothing stored. Stored files get a random filesystem name under
+	 * uploads/ticketoo/YYYY/MM/; only the sanitized original name reaches
+	 * the database.
 	 *
 	 * @param WP_REST_Request $request Request instance.
-	 * @return WP_REST_Response|WP_Error 201 with the stored message, or a
-	 *                                   400/404/500 error.
+	 * @return WP_REST_Response|WP_Error 201 with the stored message and its
+	 *                                   attachments, or a 400/404/500 error.
 	 */
 	public static function reply_to_ticket( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$ticket = TicketRepository::find( (int) $request->get_param( 'id' ) );
@@ -495,6 +659,12 @@ class FrontendController {
 				__( 'A message is required.', 'ticketoo' ),
 				array( 'status' => 400 )
 			);
+		}
+
+		$uploads = self::validated_uploads( $request );
+
+		if ( is_wp_error( $uploads ) ) {
+			return $uploads;
 		}
 
 		$user_id  = get_current_user_id();
@@ -516,15 +686,284 @@ class FrontendController {
 			);
 		}
 
+		$attachments = array();
+
+		foreach ( $uploads as $upload ) {
+			$attachment = self::store_upload( $message_id, $upload );
+
+			if ( null === $attachment ) {
+				return new WP_Error(
+					'ticketoo_rest_upload_failed',
+					__( 'The attachment could not be stored.', 'ticketoo' ),
+					array( 'status' => 500 )
+				);
+			}
+
+			$attachments[] = self::attachment_payload( $attachment );
+		}
+
 		return new WP_REST_Response(
 			array(
-				'id'        => $message_id,
-				'ticket_id' => $ticket->id,
-				'is_agent'  => $is_agent,
-				'content'   => $content,
+				'id'          => $message_id,
+				'ticket_id'   => $ticket->id,
+				'is_agent'    => $is_agent,
+				'content'     => $content,
+				'attachments' => $attachments,
 			),
 			201
 		);
+	}
+
+	/**
+	 * Handles POST /tickets/{id}/status: validates the new status against
+	 * the ticketoo_statuses list, restricts non-agents to 'closed', persists
+	 * the change and fires ticketoo_ticket_status_changed.
+	 *
+	 * The permission callback has already authorized the requester.
+	 *
+	 * @param WP_REST_Request $request Request instance.
+	 * @return WP_REST_Response|WP_Error 200 with id and status, or a
+	 *                                   400/403/404/500 error.
+	 */
+	public static function set_ticket_status( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$ticket = TicketRepository::find( (int) $request->get_param( 'id' ) );
+
+		if ( null === $ticket ) {
+			return self::ticket_not_found();
+		}
+
+		$status   = self::string_param( $request, 'status' );
+		$statuses = self::allowed_statuses();
+
+		if ( ! isset( $statuses[ $status ] ) && ! in_array( $status, $statuses, true ) ) {
+			return new WP_Error(
+				'ticketoo_rest_invalid_status',
+				__( 'Unknown ticket status.', 'ticketoo' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! current_user_can( Capabilities::CAP ) && 'closed' !== $status ) {
+			return new WP_Error(
+				'ticketoo_rest_forbidden',
+				__( 'You may only close your own ticket; agents may set any status.', 'ticketoo' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		$old_status = $ticket->status;
+
+		if ( $old_status !== $status ) {
+			if ( ! TicketRepository::update_status( $ticket->id, $status ) ) {
+				return new WP_Error(
+					'ticketoo_rest_status_failed',
+					__( 'The ticket status could not be updated.', 'ticketoo' ),
+					array( 'status' => 500 )
+				);
+			}
+
+			/**
+			 * Fires after a ticket's status changed.
+			 *
+			 * @since 0.1.0
+			 * @param int    $ticket_id  Ticket id.
+			 * @param string $old_status Status slug before the change.
+			 * @param string $new_status Status slug after the change.
+			 */
+			do_action( 'ticketoo_ticket_status_changed', $ticket->id, $old_status, $status );
+		}
+
+		return new WP_REST_Response(
+			array(
+				'id'     => $ticket->id,
+				'status' => $status,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Handles POST /tickets/{id}/assign: assigns the ticket to a
+	 * ticketoo_agent or administrator, unassigns it when user_id is 0, and
+	 * fires ticketoo_ticket_assigned when the assignee actually changes.
+	 *
+	 * The permission callback has already required ticketoo_manage_tickets.
+	 *
+	 * @param WP_REST_Request $request Request instance.
+	 * @return WP_REST_Response|WP_Error 200 with id and assigned_to, or a
+	 *                                   400/404/500 error.
+	 */
+	public static function assign_ticket( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		global $wpdb;
+
+		$ticket = TicketRepository::find( (int) $request->get_param( 'id' ) );
+
+		if ( null === $ticket ) {
+			return self::ticket_not_found();
+		}
+
+		$user_id = (int) $request->get_param( 'user_id' );
+
+		if ( 0 > $user_id ) {
+			return new WP_Error(
+				'ticketoo_rest_invalid_assignee',
+				__( 'A positive user id, or 0 to unassign, is required.', 'ticketoo' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( 0 < $user_id ) {
+			$user = get_userdata( $user_id );
+
+			if ( false === $user ) {
+				return new WP_Error(
+					'ticketoo_rest_invalid_assignee',
+					__( 'The requested user does not exist.', 'ticketoo' ),
+					array( 'status' => 400 )
+				);
+			}
+
+			$is_agent = array_intersect(
+				array( Capabilities::ROLE, 'administrator' ),
+				(array) $user->roles
+			);
+
+			if ( array() === $is_agent ) {
+				return new WP_Error(
+					'ticketoo_rest_invalid_assignee',
+					__( 'Tickets can only be assigned to support agents or administrators.', 'ticketoo' ),
+					array( 'status' => 400 )
+				);
+			}
+		}
+
+		$assignee = 0 < $user_id ? $user_id : null;
+		$previous = $ticket->assigned_to;
+
+		if ( $previous !== $assignee ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Assignment must reach the database immediately; the tickets table is not object-cached.
+			$updated = $wpdb->update(
+				Activator::table_names()['tickets'],
+				array(
+					'assigned_to' => $assignee,
+					'updated_at'  => current_time( 'mysql' ),
+				),
+				array( 'id' => $ticket->id ),
+				array( '%d', '%s' ),
+				array( '%d' )
+			);
+
+			if ( false === $updated ) {
+				return new WP_Error(
+					'ticketoo_rest_assign_failed',
+					__( 'The ticket could not be assigned.', 'ticketoo' ),
+					array( 'status' => 500 )
+				);
+			}
+
+			/**
+			 * Fires after a ticket's assignee changed.
+			 *
+			 * @since 0.1.0
+			 * @param int $ticket_id        Ticket id.
+			 * @param int $assigned_user_id New agent id; 0 when unassigned.
+			 * @param int $previous_user_id Previous agent id; 0 when there was none.
+			 */
+			do_action( 'ticketoo_ticket_assigned', $ticket->id, $user_id, null !== $previous ? $previous : 0 );
+		}
+
+		return new WP_REST_Response(
+			array(
+				'id'          => $ticket->id,
+				'assigned_to' => $assignee,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Handles GET /attachments/{id}: serves the stored file bytes with an
+	 * attachment disposition.
+	 *
+	 * The permission callback has already authorized the request. The
+	 * stored path must realpath() into a real file underneath the ticketoo
+	 * upload directory — the prefix check defeats path-traversal payloads
+	 * smuggled into file_path, and the raw bytes are echoed by
+	 * serve_raw_response() instead of being JSON-encoded.
+	 *
+	 * @param WP_REST_Request $request Request instance.
+	 * @return WP_REST_Response|WP_Error File bytes with download headers,
+	 *                                   or a 404 error.
+	 */
+	public static function download_attachment( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$attachment = self::find_attachment( (int) $request->get_param( 'id' ) );
+
+		if ( null === $attachment ) {
+			return self::attachment_not_found();
+		}
+
+		$base = realpath( wp_upload_dir()['basedir'] . '/ticketoo' );
+		$file = realpath( $attachment->file_path );
+
+		if ( false === $base || false === $file || ! is_file( $file ) ) {
+			return self::attachment_not_found();
+		}
+
+		if ( ! str_starts_with( $file, $base . DIRECTORY_SEPARATOR ) ) {
+			return self::attachment_not_found();
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reads the authorized attachment from disk (a local path, not a URL); WP_Filesystem would add boot cost for a single read.
+		$contents = file_get_contents( $file );
+
+		if ( false === $contents ) {
+			return self::attachment_not_found();
+		}
+
+		$mime = 1 === preg_match( '#^[A-Za-z0-9.+-]+/[A-Za-z0-9.+-]+$#', $attachment->mime )
+			? $attachment->mime
+			: 'application/octet-stream';
+
+		$filename = str_replace( array( '"', "\r", "\n" ), '', $attachment->original_name );
+
+		$response = new WP_REST_Response( $contents, 200 );
+		$response->header( 'Content-Type', $mime );
+		$response->header( 'Content-Disposition', 'attachment; filename="' . $filename . '"' );
+		$response->header( 'Content-Length', (string) strlen( $contents ) );
+		$response->header( 'X-Content-Type-Options', 'nosniff' );
+
+		return $response;
+	}
+
+	/**
+	 * Serves attachment downloads byte for byte.
+	 *
+	 * REST responses are JSON-encoded by default, which would corrupt a
+	 * binary file; when the response carries an attachment disposition this
+	 * callback echoes the raw bytes itself and skips the JSON step. Hooked
+	 * to rest_pre_serve_request from register_routes().
+	 *
+	 * @param bool             $served Whether the request has already been served.
+	 * @param WP_REST_Response $result Response being served.
+	 * @return bool True when this callback served the response itself.
+	 */
+	public static function serve_raw_response( $served, $result ) {
+		if ( true === $served || ! ( $result instanceof WP_REST_Response ) ) {
+			return $served;
+		}
+
+		$headers     = $result->get_headers();
+		$disposition = isset( $headers['Content-Disposition'] ) ? (string) $headers['Content-Disposition'] : '';
+		$data        = $result->get_data();
+
+		if ( ! str_starts_with( $disposition, 'attachment' ) || ! is_string( $data ) ) {
+			return $served;
+		}
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Raw bytes of the already-authorized attachment file.
+		echo $data;
+
+		return true;
 	}
 
 	/**
@@ -626,6 +1065,404 @@ class FrontendController {
 	}
 
 	/**
+	 * The status slugs the plugin accepts, extensible through the
+	 * ticketoo_statuses filter (spec §10).
+	 *
+	 * @return array Status slug => human-readable label.
+	 */
+	private static function allowed_statuses(): array {
+		/**
+		 * Filters the ticket statuses accepted for status changes.
+		 *
+		 * @since 0.1.0
+		 * @param array $statuses Status slug => human-readable label.
+		 */
+		return apply_filters(
+			'ticketoo_statuses',
+			array(
+				'open'     => __( 'Open', 'ticketoo' ),
+				'pending'  => __( 'Pending', 'ticketoo' ),
+				'answered' => __( 'Answered', 'ticketoo' ),
+				'closed'   => __( 'Closed', 'ticketoo' ),
+			)
+		);
+	}
+
+	/**
+	 * Allowed attachment extensions from the ticketoo_attachment_types
+	 * option (CSV, default jpg,jpeg,png,gif,pdf,zip,txt,docx).
+	 *
+	 * An empty option fails closed: nothing is accepted.
+	 *
+	 * @return string[] Lowercased extension list.
+	 */
+	private static function allowed_attachment_types(): array {
+		$raw   = (string) get_option( 'ticketoo_attachment_types', 'jpg,jpeg,png,gif,pdf,zip,txt,docx' );
+		$types = array();
+
+		foreach ( explode( ',', $raw ) as $type ) {
+			$type = strtolower( trim( $type ) );
+
+			if ( '' !== $type ) {
+				$types[] = $type;
+			}
+		}
+
+		return $types;
+	}
+
+	/**
+	 * Validates every uploaded file before anything is stored.
+	 *
+	 * Per file: a successful upload error code, a readable temporary file,
+	 * wp_check_filetype_and_ext() agreement, an extension listed in
+	 * ticketoo_attachment_types and a size within ticketoo_attachment_max_mb.
+	 * The client-declared MIME type and size are never trusted; both are
+	 * re-derived from the file on disk (spec §8).
+	 *
+	 * @param WP_REST_Request $request Request instance.
+	 * @return array|WP_Error Cleaned upload descriptors, or a 400 error for
+	 *                         the first rejected file.
+	 */
+	private static function validated_uploads( WP_REST_Request $request ): array|WP_Error {
+		$files = self::request_files( $request );
+
+		if ( array() === $files ) {
+			return array();
+		}
+
+		$max_mb    = max( 0, (int) get_option( 'ticketoo_attachment_max_mb', 5 ) );
+		$max_bytes = $max_mb * 1024 * 1024;
+		$allowed   = self::allowed_attachment_types();
+		$uploads   = array();
+
+		foreach ( $files as $file ) {
+			if ( UPLOAD_ERR_OK !== $file['error'] ) {
+				return self::upload_failed_error();
+			}
+
+			$tmp = $file['tmp_name'];
+
+			if ( '' === $tmp || ! is_readable( $tmp ) ) {
+				return self::upload_failed_error();
+			}
+
+			$check = wp_check_filetype_and_ext( $tmp, $file['name'] );
+			$ext   = is_string( $check['ext'] ) ? strtolower( $check['ext'] ) : '';
+			$mime  = is_string( $check['type'] ) ? (string) $check['type'] : '';
+
+			if ( '' === $ext || '' === $mime || ! in_array( $ext, $allowed, true ) ) {
+				return new WP_Error(
+					'ticketoo_rest_disallowed_file',
+					__( 'This file type is not allowed.', 'ticketoo' ),
+					array( 'status' => 400 )
+				);
+			}
+
+			$size = filesize( $tmp );
+
+			if ( false === $size ) {
+				return self::upload_failed_error();
+			}
+
+			if ( $size > $max_bytes ) {
+				return new WP_Error(
+					'ticketoo_rest_file_too_large',
+					sprintf(
+						/* translators: %d: Maximum attachment size in megabytes. */
+						__( 'Attachments must not exceed %d MB.', 'ticketoo' ),
+						$max_mb
+					),
+					array( 'status' => 400 )
+				);
+			}
+
+			$uploads[] = array(
+				'tmp_name' => $tmp,
+				'name'     => self::store_original_name( $file['name'], $ext ),
+				'ext'      => $ext,
+				'mime'     => $mime,
+				'size'     => (int) $size,
+			);
+		}
+
+		return $uploads;
+	}
+
+	/**
+	 * Reads the `files[]` upload tree from the request in the same shape PHP
+	 * builds for a multipart field named files[].
+	 *
+	 * UPLOAD_ERR_NO_FILE entries (empty file inputs) are dropped silently;
+	 * the client-declared MIME type and size are deliberately discarded.
+	 *
+	 * @param WP_REST_Request $request Request instance.
+	 * @return array<int, array{name: string, tmp_name: string, error: int}>
+	 */
+	private static function request_files( WP_REST_Request $request ): array {
+		$params = $request->get_file_params();
+
+		if ( ! isset( $params['files'] ) || ! is_array( $params['files'] ) ) {
+			return array();
+		}
+
+		$files = $params['files'];
+		$names = isset( $files['name'] ) && is_array( $files['name'] ) ? $files['name'] : array( $files['name'] ?? '' );
+
+		$slots = array(
+			'tmp_name' => isset( $files['tmp_name'] ) && is_array( $files['tmp_name'] ) ? $files['tmp_name'] : array( $files['tmp_name'] ?? '' ),
+			'error'    => isset( $files['error'] ) && is_array( $files['error'] ) ? $files['error'] : array( $files['error'] ?? UPLOAD_ERR_NO_FILE ),
+		);
+
+		$uploads = array();
+
+		foreach ( $names as $index => $name ) {
+			$error = (int) ( $slots['error'][ $index ] ?? UPLOAD_ERR_NO_FILE );
+
+			if ( UPLOAD_ERR_NO_FILE === $error ) {
+				continue;
+			}
+
+			$uploads[] = array(
+				'name'     => is_scalar( $name ) ? (string) $name : '',
+				'tmp_name' => is_scalar( $slots['tmp_name'][ $index ] ?? null ) ? (string) $slots['tmp_name'][ $index ] : '',
+				'error'    => $error,
+			);
+		}
+
+		return $uploads;
+	}
+
+	/**
+	 * Prepares the original filename for the original_name column: the
+	 * client name sanitized, then truncated at 100 characters so long names
+	 * always fit the field.
+	 *
+	 * @param string $name Client-side filename.
+	 * @param string $ext  Validated extension, used when nothing survives sanitizing.
+	 * @return string Display name stored in the database (never on disk).
+	 */
+	private static function store_original_name( string $name, string $ext ): string {
+		$original = sanitize_file_name( $name );
+
+		if ( '' === $original ) {
+			$original = 'file.' . $ext;
+		}
+
+		return function_exists( 'mb_substr' )
+			? mb_substr( $original, 0, 100, 'UTF-8' )
+			: substr( $original, 0, 100 );
+	}
+
+	/**
+	 * Moves one validated upload into uploads/ticketoo/YYYY/MM/ under a
+	 * random name and inserts its ticketoo_attachments row.
+	 *
+	 * The directory root carries an .htaccess deny rule (spec §4/§8), so
+	 * stored files are only reachable through the permission-checked
+	 * download route. The filesystem name is 24 random hex characters; only
+	 * the sanitized original name reaches the database.
+	 *
+	 * @param int   $message_id Owning message id.
+	 * @param array $upload     Validated upload (tmp_name, name, ext, mime, size).
+	 * @return Attachment|null Stored entity, or null when the file or the row failed.
+	 */
+	private static function store_upload( int $message_id, array $upload ): ?Attachment {
+		global $wpdb;
+
+		$upload_dir = wp_upload_dir();
+
+		if ( ! empty( $upload_dir['error'] ) ) {
+			return null;
+		}
+
+		$now  = current_time( 'mysql' );
+		$base = $upload_dir['basedir'] . '/ticketoo';
+		$dir  = $base . '/' . substr( $now, 0, 4 ) . '/' . substr( $now, 5, 2 );
+
+		if ( ! wp_mkdir_p( $dir ) ) {
+			return null;
+		}
+
+		self::write_denied_htaccess( $base );
+
+		$dest = $dir . '/' . bin2hex( random_bytes( 12 ) ) . '.' . $upload['ext'];
+
+		$moved = is_uploaded_file( $upload['tmp_name'] )
+			? move_uploaded_file( $upload['tmp_name'], $dest )
+			: copy( $upload['tmp_name'], $dest );
+
+		if ( ! $moved ) {
+			return null;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Attachment rows are written once at upload time; the table has no object-cache layer.
+		$inserted = $wpdb->insert(
+			Activator::table_names()['attachments'],
+			array(
+				'message_id'    => $message_id,
+				'file_path'     => $dest,
+				'original_name' => $upload['name'],
+				'mime'          => $upload['mime'],
+				'size'          => $upload['size'],
+				'created_at'    => $now,
+			)
+		);
+
+		if ( false === $inserted ) {
+			if ( file_exists( $dest ) ) {
+				wp_delete_file( $dest );
+			}
+
+			return null;
+		}
+
+		return self::find_attachment( (int) $wpdb->insert_id );
+	}
+
+	/**
+	 * Writes the .htaccess deny rule into the ticketoo upload root once
+	 * (spec §4: stored files are never served directly by the web server).
+	 *
+	 * @param string $base Absolute path of the ticketoo upload directory.
+	 * @return void
+	 */
+	private static function write_denied_htaccess( string $base ): void {
+		$htaccess = $base . '/.htaccess';
+
+		if ( file_exists( $htaccess ) ) {
+			return;
+		}
+
+		$rules =
+			"# Ticketoo: attachments are served only through the REST download route.\n" .
+			"<IfModule mod_authz_core.c>\n" .
+			"\tRequire all denied\n" .
+			"</IfModule>\n" .
+			"<IfModule !mod_authz_core.c>\n" .
+			"\tOrder deny,allow\n" .
+			"\tDeny from all\n" .
+			"</IfModule>\n";
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions -- Writes a static deny rule next to the stored files; WP_Filesystem would require credentials on some hosts for a one-time local write.
+		file_put_contents( $htaccess, $rules );
+	}
+
+	/**
+	 * Builds the public payload for one attachment.
+	 *
+	 * The server-side file_path is deliberately absent: no REST response may
+	 * expose where a file lives on disk.
+	 *
+	 * @param Attachment $attachment Attachment entity.
+	 * @return array Public attachment fields.
+	 */
+	private static function attachment_payload( Attachment $attachment ): array {
+		return array(
+			'id'         => $attachment->id,
+			'message_id' => $attachment->message_id,
+			'name'       => $attachment->original_name,
+			'mime'       => $attachment->mime,
+			'size'       => $attachment->size,
+			'url'        => rest_url( 'ticketoo/v1/attachments/' . $attachment->id ),
+		);
+	}
+
+	/**
+	 * Lists a ticket's attachments across all of its messages, oldest first.
+	 *
+	 * @param int $ticket_id Owning ticket id.
+	 * @return array Attachment payloads (see attachment_payload()).
+	 */
+	private static function ticket_attachments( int $ticket_id ): array {
+		global $wpdb;
+
+		$attachments_table = Activator::table_names()['attachments'];
+		$messages_table    = Activator::table_names()['messages'];
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Ticket attachment listing must reach the database immediately; table names come from Activator::table_names() and the ticket id travels as a prepared placeholder.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT a.* FROM {$attachments_table} a INNER JOIN {$messages_table} m ON m.id = a.message_id WHERE m.ticket_id = %d ORDER BY a.id ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names come from Activator::table_names(); the ticket id is a prepared placeholder.
+				$ticket_id
+			)
+		);
+
+		$items = array();
+
+		foreach ( (array) $rows as $row ) {
+			$items[] = self::attachment_payload( Attachment::from_row( $row ) );
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Fetches one attachment by id.
+	 *
+	 * @param int $id Attachment id.
+	 * @return Attachment|null Null when no attachment has that id.
+	 */
+	private static function find_attachment( int $id ): ?Attachment {
+		global $wpdb;
+
+		if ( 1 > $id ) {
+			return null;
+		}
+
+		$table = Activator::table_names()['attachments'];
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Single-row lookup by id; table name comes from Activator::table_names() and the id travels as a prepared placeholder.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ) );
+
+		return null !== $row ? Attachment::from_row( $row ) : null;
+	}
+
+	/**
+	 * Resolves the ticket an attachment belongs to through its message.
+	 *
+	 * @param int $attachment_id Attachment id.
+	 * @return Ticket|null Null when neither the attachment nor its message exists.
+	 */
+	private static function attachment_ticket( int $attachment_id ): ?Ticket {
+		global $wpdb;
+
+		if ( 1 > $attachment_id ) {
+			return null;
+		}
+
+		$messages    = Activator::table_names()['messages'];
+		$attachments = Activator::table_names()['attachments'];
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Permission resolution needs the owning ticket immediately; table names come from Activator::table_names() and the id travels as a prepared placeholder.
+		$ticket_id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT m.ticket_id FROM {$messages} m INNER JOIN {$attachments} a ON a.message_id = m.id WHERE a.id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names come from Activator::table_names(); the attachment id is a prepared placeholder.
+				$attachment_id
+			)
+		);
+
+		if ( null === $ticket_id ) {
+			return null;
+		}
+
+		return TicketRepository::find( (int) $ticket_id );
+	}
+
+	/**
+	 * Builds the uniform "upload failed" error (400).
+	 *
+	 * @return WP_Error Error with a 400 status.
+	 */
+	private static function upload_failed_error(): WP_Error {
+		return new WP_Error(
+			'ticketoo_rest_invalid_upload',
+			__( 'The upload could not be processed.', 'ticketoo' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	/**
 	 * Whether guest ticket creation is enabled (option default: enabled).
 	 *
 	 * @return bool True when guests may open tickets.
@@ -679,6 +1516,22 @@ class FrontendController {
 		return new WP_Error(
 			'ticketoo_rest_ticket_not_found',
 			__( 'Ticket not found.', 'ticketoo' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	/**
+	 * Builds the uniform "attachment missing" error (404).
+	 *
+	 * Also returned when the requester may not access the owning ticket, so
+	 * attachment ids cannot be probed.
+	 *
+	 * @return WP_Error Error with a 404 status.
+	 */
+	private static function attachment_not_found(): WP_Error {
+		return new WP_Error(
+			'ticketoo_rest_attachment_not_found',
+			__( 'Attachment not found.', 'ticketoo' ),
 			array( 'status' => 404 )
 		);
 	}

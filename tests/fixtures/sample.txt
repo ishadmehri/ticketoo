@@ -1,0 +1,4 @@
+Ticketoo sample attachment fixture.
+
+This plain-text file is attached to a reply through the multipart
+POST /tickets/{id}/messages endpoint during the Task 6 test run.
