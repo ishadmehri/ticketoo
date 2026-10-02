@@ -104,16 +104,23 @@ class MenuPage {
 				'nonce'           => wp_create_nonce( 'wp_rest' ),
 				'counterInterval' => SettingsPage::get_counter_refresh_seconds(),
 				'i18n'            => array(
-					'statuses'   => self::statuses(),
-					'empty'      => __( 'No tickets found.', 'ticketoo' ),
-					'error'      => __( 'The request could not be completed. Please try again.', 'ticketoo' ),
-					'you'        => __( 'You', 'ticketoo' ),
-					'prev'       => __( 'Previous', 'ticketoo' ),
-					'next'       => __( 'Next', 'ticketoo' ),
-					'view'       => __( 'View ticket', 'ticketoo' ),
-					'reply'      => __( 'Reply', 'ticketoo' ),
-					'assign'     => __( 'Assign', 'ticketoo' ),
-					'unassigned' => __( 'Unassigned', 'ticketoo' ),
+					'statuses'       => self::statuses(),
+					'empty'          => __( 'No tickets found.', 'ticketoo' ),
+					'error'          => __( 'The request could not be completed. Please try again.', 'ticketoo' ),
+					'you'            => __( 'You', 'ticketoo' ),
+					'prev'           => __( 'Previous', 'ticketoo' ),
+					'next'           => __( 'Next', 'ticketoo' ),
+					'view'           => __( 'View ticket', 'ticketoo' ),
+					'reply'          => __( 'Reply', 'ticketoo' ),
+					'assign'         => __( 'Assign', 'ticketoo' ),
+					'unassigned'     => __( 'Unassigned', 'ticketoo' ),
+					'close'          => __( 'Close', 'ticketoo' ),
+					'loading'        => __( 'Loading…', 'ticketoo' ),
+					'your_reply'     => __( 'Your reply', 'ticketoo' ),
+					'attach'         => __( 'Attach files', 'ticketoo' ),
+					'replied'        => __( 'Your reply has been sent.', 'ticketoo' ),
+					'assigned'       => __( 'The ticket has been assigned.', 'ticketoo' ),
+					'status_changed' => __( 'The ticket status has been updated.', 'ticketoo' ),
 				),
 			)
 		);
@@ -160,6 +167,11 @@ class MenuPage {
 						<option value="">
 							<?php esc_html_e( 'All agents', 'ticketoo' ); ?>
 						</option>
+						<?php foreach ( self::agents() as $agent ) : ?>
+							<option value="<?php echo esc_attr( (string) $agent->ID ); ?>">
+								<?php echo esc_html( $agent->display_name ); ?>
+							</option>
+						<?php endforeach; ?>
 					</select>
 
 					<label class="screen-reader-text" for="ticketoo-search">
@@ -229,5 +241,26 @@ class MenuPage {
 		);
 
 		return is_array( $statuses ) ? $statuses : array();
+	}
+
+	/**
+	 * The users a ticket may be assigned to, in display-name order: the
+	 * support-agent role plus administrators — exactly the set
+	 * FrontendController::assign_ticket() accepts as a target.
+	 *
+	 * There is no agents REST route (spec §5), so the shell ships this
+	 * roster as <option>s: the toolbar's agent filter and the detail
+	 * view's assign select are both built from it by assets/js/admin.js.
+	 *
+	 * @return WP_User[] Users holding an assignable role.
+	 */
+	private static function agents(): array {
+		return get_users(
+			array(
+				'role__in' => array( Capabilities::ROLE, 'administrator' ),
+				'orderby'  => 'display_name',
+				'order'    => 'ASC',
+			)
+		);
 	}
 }
