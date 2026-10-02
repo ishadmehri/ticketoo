@@ -10,6 +10,7 @@ namespace Ticketoo;
 use Ticketoo\Admin\Capabilities;
 use Ticketoo\Admin\MenuPage;
 use Ticketoo\Admin\SettingsPage;
+use Ticketoo\Email\Notifier;
 use Ticketoo\Integrations\Elementor;
 use Ticketoo\Integrations\Gutenberg;
 use Ticketoo\Rest\FrontendController;
@@ -51,6 +52,14 @@ class Plugin {
 		);
 
 		add_action( 'rest_api_init', array( FrontendController::class, 'register_routes' ) );
+
+		// Email notifications (spec §7): the REST create handler fires
+		// ticketoo_ticket_created, the shared reply handler fires
+		// ticketoo_ticket_replied (both the AJAX and the classic no-JS path
+		// replay through it); the auto-close sweep calls
+		// Notifier::on_auto_closed() directly when Task 13 lands.
+		add_action( 'ticketoo_ticket_created', array( Notifier::class, 'on_ticket_created' ) );
+		add_action( 'ticketoo_ticket_replied', array( Notifier::class, 'on_ticket_replied' ), 10, 2 );
 
 		// Server-rendered views (ADR 0003): the shortcode prints markup that
 		// works without JavaScript, and template_redirect turns the classic

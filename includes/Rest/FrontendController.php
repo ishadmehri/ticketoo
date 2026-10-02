@@ -686,6 +686,17 @@ class FrontendController {
 			);
 		}
 
+		/**
+		 * Fires after a reply has been stored. The classic (no-JS) form
+		 * replays through this same handler, so one fire site covers both
+		 * request paths.
+		 *
+		 * @since 0.1.0
+		 * @param int  $ticket_id Ticket id.
+		 * @param bool $is_agent  True when an agent wrote the reply.
+		 */
+		do_action( 'ticketoo_ticket_replied', (int) $ticket->id, (bool) $is_agent );
+
 		$attachments = array();
 
 		foreach ( $uploads as $upload ) {
