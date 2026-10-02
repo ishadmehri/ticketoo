@@ -8,6 +8,8 @@
 namespace Ticketoo;
 
 use Ticketoo\Admin\Capabilities;
+use Ticketoo\Admin\MenuPage;
+use Ticketoo\Admin\SettingsPage;
 use Ticketoo\Integrations\Elementor;
 use Ticketoo\Integrations\Gutenberg;
 use Ticketoo\Rest\FrontendController;
@@ -25,13 +27,28 @@ class Plugin {
 	/**
 	 * Runs on plugins_loaded. Re-asserts the capability and agent role so
 	 * they survive wiped options, queues the public REST routes for
-	 * rest_api_init, and registers the [ticketoo] shortcode together with
-	 * its classic (no-JS) form handler.
+	 * rest_api_init, registers the [ticketoo] shortcode together with
+	 * its classic (no-JS) form handler, and wires the capability-gated
+	 * admin menu, settings screen and panel assets.
 	 *
 	 * @return void
 	 */
 	public static function boot(): void {
 		Capabilities::register();
+
+		// Admin menu and settings (spec §6): both pages are gated by the
+		// plugin capability. The menu registers first so the Settings
+		// submenu finds its parent; assets load only on the panel screen.
+		add_action( 'admin_menu', array( MenuPage::class, 'register' ) );
+		add_action( 'admin_menu', array( SettingsPage::class, 'register' ) );
+		add_action( 'admin_enqueue_scripts', array( MenuPage::class, 'enqueue_assets' ) );
+
+		// options.php requires manage_options by default; saving these
+		// settings only needs the plugin capability.
+		add_filter(
+			'option_page_capability_' . SettingsPage::OPTION_GROUP,
+			array( SettingsPage::class, 'option_page_capability' )
+		);
 
 		add_action( 'rest_api_init', array( FrontendController::class, 'register_routes' ) );
 
