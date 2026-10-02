@@ -7,6 +7,8 @@
 
 namespace Ticketoo;
 
+use Ticketoo\Admin\Capabilities;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -17,11 +19,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Plugin {
 
 	/**
-	 * Runs on plugins_loaded. Empty in the skeleton; later tasks wire their
-	 * hooks, services and REST routes here.
+	 * Runs on plugins_loaded. Currently re-asserts the capability and agent
+	 * role so they survive wiped options; later tasks wire their hooks,
+	 * services and REST routes here.
 	 *
 	 * @return void
 	 */
 	public static function boot(): void {
+		Capabilities::register();
 	}
 }
