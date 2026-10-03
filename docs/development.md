@@ -24,7 +24,7 @@ Other env commands: `npm run env:stop`, `npm run env:down` (remove containers).
 ## Tests and lint
 
 ```sh
-npm run phpunit        # PHPUnit suite (97 tests) — wp-env run cli ... phpunit
+npm run phpunit        # PHPUnit suite (101 tests) — wp-env run cli ... phpunit
 npm run phpcs          # WordPress-Coding-Standards — wp-env run cli ... phpcs
 node --check assets/js/frontend.js   # syntax check for shipped JS
 ```
@@ -63,6 +63,9 @@ helper `stored_filenames()` skips them by design.
 - JS/CSS style follows WordPress conventions: tabs for indentation,
   `ticketoo-` prefixed handles and CSS namespaces, REST calls authenticated
   with a `wp_rest` nonce (`X-WP-Nonce`) plus same-origin cookies.
+- Stylesheets stay RTL-ready by using CSS logical properties only (no
+  `-rtl.css` mirrors are shipped); `tests/test-rtl-css.php` fails the suite
+  if a physical `left`/`right` declaration appears in either file.
 
 ## REST route table
 
@@ -85,6 +88,9 @@ Notes:
   tokens are compared with `hash_equals` and never serialized back to
   responses or logs.
 - Response bodies never contain `guest_token`.
+- A non-agent reply to a `closed` ticket reopens it to `open`
+  (`ticket_status` in the reply payload); agent replies do not change the
+  status.
 - The full contract (payloads, status codes, error codes) is pinned by
   `tests/test-rest-*.php` and specified in the
   [design spec](specs/2026-09-28-support-tickets-design.md).
@@ -126,6 +132,6 @@ what the table verifies.
 
 Run for every release; all three must be green:
 
-1. `npm run phpunit` → `OK (97 tests, 471 assertions)`
+1. `npm run phpunit` → `OK (101 tests, 490 assertions)`
 2. `npm run phpcs` → `24 / 24 (100%)` — 0 errors, 0 warnings
 3. `node --check` on `assets/js/*.js` → 3/3 clean

@@ -25,12 +25,16 @@ builder and no external service:
 * A "Ticketoo" panel in wp-admin to list, assign and update tickets, plus a
   settings screen (auto-close window, attachment limits, sender name and
   email, guest tickets, live counter refresh).
-* Daily automatic closing of inactive tickets on WP-Cron.
+* Daily automatic closing of inactive tickets on WP-Cron. A reply from the
+  customer reopens a closed ticket (the auto-close email's promise); agent
+  replies leave the status alone.
 * Three Gutenberg blocks (Ticketoo Ticket List, Ticketoo New Ticket Form,
   Ticketoo Conversation) and an optional Elementor widget — all rendering
   the same shortcode.
 * Translation ready: text domain `ticketoo`, template overrides from your
   theme's `ticketoo/` directory, and filters throughout.
+* RTL-ready: the stylesheets use CSS logical properties only, so layouts
+  mirror automatically in right-to-left languages (no separate `-rtl.css`).
 
 = Shortcode =
 

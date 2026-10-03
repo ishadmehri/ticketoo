@@ -775,6 +775,18 @@
 
 		messages.appendChild( messageNode( json ) );
 
+		// The reply payload carries the post-reply status: a customer reply
+		// to a closed ticket reopens it server-side, so refresh the chip.
+		var status = json && 'string' === typeof json.ticket_status && '' !== json.ticket_status ? json.ticket_status : '';
+
+		if ( '' !== status ) {
+			var badge = root.querySelector( '.ticketoo-badge' );
+
+			if ( badge ) {
+				setBadge( badge, status );
+			}
+		}
+
 		var content = form.querySelector( '[name="ticketoo_content"]' );
 
 		if ( content ) {
@@ -881,6 +893,22 @@
 			throw new Error( 'ticketoo: badge markup missing' );
 		}
 
+		setBadge( badge, status );
+
+		if ( form && form.parentNode ) {
+			form.parentNode.removeChild( form );
+		}
+
+		showNotice( root, 'success', text( 'closed', 'The ticket has now been closed.' ) );
+	}
+
+	/**
+	 * Rewrites a status chip in place: modifier class plus translated label.
+	 *
+	 * @param {HTMLElement} badge The .ticketoo-badge element.
+	 * @param {string}      status Status slug.
+	 */
+	function setBadge( badge, status ) {
 		badge.className = 'ticketoo-badge ticketoo-badge--' + status;
 
 		while ( badge.firstChild ) {
@@ -888,12 +916,6 @@
 		}
 
 		badge.appendChild( document.createTextNode( statusLabel( status ) ) );
-
-		if ( form && form.parentNode ) {
-			form.parentNode.removeChild( form );
-		}
-
-		showNotice( root, 'success', text( 'closed', 'The ticket has now been closed.' ) );
 	}
 
 	/* ---------- delegated listeners ---------- */

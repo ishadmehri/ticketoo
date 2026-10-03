@@ -635,6 +635,11 @@ class FrontendController {
 	 * attached files (`files[]`) and touches the ticket's activity
 	 * timestamps through MessageRepository::add().
 	 *
+	 * A non-agent reply to a closed ticket reopens it to `open` and fires
+	 * ticketoo_ticket_status_changed (the auto-close email's "Reply to
+	 * reopen" promise); agent replies leave the status untouched because
+	 * agents reopen through POST /tickets/{id}/status (spec § Close by user).
+	 *
 	 * Every file is validated (type, option allow-list, size cap) before the
 	 * message is written, so one rejected file rejects the whole request
 	 * with nothing stored. Stored files get a random filesystem name under
@@ -642,8 +647,9 @@ class FrontendController {
 	 * the database.
 	 *
 	 * @param WP_REST_Request $request Request instance.
-	 * @return WP_REST_Response|WP_Error 201 with the stored message and its
-	 *                                   attachments, or a 400/404/500 error.
+	 * @return WP_REST_Response|WP_Error 201 with the stored message, its
+	 *                                   attachments and the post-reply
+	 *                                   ticket status, or a 400/404/500 error.
 	 */
 	public static function reply_to_ticket( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$ticket = TicketRepository::find( (int) $request->get_param( 'id' ) );
@@ -687,6 +693,31 @@ class FrontendController {
 			);
 		}
 
+		$ticket_status = $ticket->status;
+
+		if ( 'closed' === $ticket_status && 0 === $is_agent ) {
+			if ( ! TicketRepository::update_status( $ticket->id, 'open' ) ) {
+				return new WP_Error(
+					'ticketoo_rest_reopen_failed',
+					__( 'The ticket could not be reopened.', 'ticketoo' ),
+					array( 'status' => 500 )
+				);
+			}
+
+			$ticket_status = 'open';
+
+			/**
+			 * Fires after a reply reopened a closed ticket (spec § Close by
+			 * user: the auto-close email promises "Reply to reopen").
+			 *
+			 * @since 0.1.0
+			 * @param int    $ticket_id  Ticket id.
+			 * @param string $old_status Status slug before the change.
+			 * @param string $new_status Status slug after the change.
+			 */
+			do_action( 'ticketoo_ticket_status_changed', (int) $ticket->id, 'closed', 'open' );
+		}
+
 		/**
 		 * Fires after a reply has been stored. The classic (no-JS) form
 		 * replays through this same handler, so one fire site covers both
@@ -716,11 +747,12 @@ class FrontendController {
 
 		return new WP_REST_Response(
 			array(
-				'id'          => $message_id,
-				'ticket_id'   => $ticket->id,
-				'is_agent'    => $is_agent,
-				'content'     => $content,
-				'attachments' => $attachments,
+				'id'            => $message_id,
+				'ticket_id'     => $ticket->id,
+				'is_agent'      => $is_agent,
+				'content'       => $content,
+				'ticket_status' => $ticket_status,
+				'attachments'   => $attachments,
 			),
 			201
 		);

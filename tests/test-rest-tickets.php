@@ -484,6 +484,129 @@ class Test_Rest_Tickets extends Ticketoo_Database_TestCase {
 		$this->assertNull( $ticket->guest_token, 'A logged-in ticket must never receive a guest token.' );
 	}
 
+	public function test_owner_reply_reopens_closed_ticket(): void {
+		$user      = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$ticket_id = $this->create_ticket(
+			array(
+				'user_id' => $user,
+				'email'   => 'member@example.com',
+			)
+		);
+
+		TicketRepository::update_status( $ticket_id, 'closed' );
+
+		$fired   = array();
+		$capture = static function ( int $id, string $old, string $new ) use ( &$fired ): void {
+			$fired = array( $id, $old, $new );
+		};
+		add_action( 'ticketoo_ticket_status_changed', $capture, 10, 3 );
+
+		wp_set_current_user( $user );
+
+		$response = $this->dispatch(
+			'POST',
+			sprintf( '/ticketoo/v1/tickets/%d/messages', $ticket_id ),
+			array(),
+			array( 'content' => 'I am back, please reopen.' )
+		);
+
+		remove_action( 'ticketoo_ticket_status_changed', $capture );
+
+		$this->assertSame( 201, $response->get_status() );
+
+		$data = $response->get_data();
+		$this->assertSame(
+			'open',
+			$data['ticket_status'] ?? null,
+			'The reply payload must carry the post-reply ticket status.'
+		);
+
+		$ticket = TicketRepository::find( $ticket_id );
+		$this->assertNotNull( $ticket );
+		$this->assertSame( 'open', $ticket->status, 'An owner reply to a closed ticket must reopen it.' );
+
+		$this->assertSame(
+			array( $ticket_id, 'closed', 'open' ),
+			$fired,
+			'The reopen must fire ticketoo_ticket_status_changed with closed -> open.'
+		);
+	}
+
+	public function test_agent_reply_does_not_reopen_closed_ticket(): void {
+		$owner     = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$agent     = self::factory()->user->create( array( 'role' => Capabilities::ROLE ) );
+		$ticket_id = $this->create_ticket(
+			array(
+				'user_id' => $owner,
+				'email'   => 'owner@example.com',
+			)
+		);
+
+		TicketRepository::update_status( $ticket_id, 'closed' );
+
+		$fired   = array();
+		$capture = static function ( int $id, string $old, string $new ) use ( &$fired ): void {
+			$fired = array( $id, $old, $new );
+		};
+		add_action( 'ticketoo_ticket_status_changed', $capture, 10, 3 );
+
+		wp_set_current_user( $agent );
+
+		$response = $this->dispatch(
+			'POST',
+			sprintf( '/ticketoo/v1/tickets/%d/messages', $ticket_id ),
+			array(),
+			array( 'content' => 'Closing remark from support.' )
+		);
+
+		remove_action( 'ticketoo_ticket_status_changed', $capture );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertSame( 'closed', $response->get_data()['ticket_status'] ?? null );
+
+		$ticket = TicketRepository::find( $ticket_id );
+		$this->assertNotNull( $ticket );
+		$this->assertSame( 'closed', $ticket->status, 'An agent reply must not reopen a closed ticket.' );
+		$this->assertSame( array(), $fired, 'No status change may fire for an agent reply to a closed ticket.' );
+	}
+
+	public function test_reply_leaves_active_status_unchanged(): void {
+		$user      = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$ticket_id = $this->create_ticket(
+			array(
+				'user_id' => $user,
+				'email'   => 'member@example.com',
+			)
+		);
+
+		TicketRepository::update_status( $ticket_id, 'answered' );
+
+		$fired   = array();
+		$capture = static function ( int $id, string $old, string $new ) use ( &$fired ): void {
+			$fired = array( $id, $old, $new );
+		};
+		add_action( 'ticketoo_ticket_status_changed', $capture, 10, 3 );
+
+		wp_set_current_user( $user );
+
+		$response = $this->dispatch(
+			'POST',
+			sprintf( '/ticketoo/v1/tickets/%d/messages', $ticket_id ),
+			array(),
+			array( 'content' => 'Thanks, that helped.' )
+		);
+
+		remove_action( 'ticketoo_ticket_status_changed', $capture );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertSame( 'answered', $response->get_data()['ticket_status'] ?? null );
+
+		$ticket = TicketRepository::find( $ticket_id );
+		$this->assertNotNull( $ticket );
+		$this->assertSame( 'answered', $ticket->status, 'A reply must not touch an active status.' );
+		$this->assertSame( array(), $fired, 'No status change may fire when the status stays put.' );
+	}
+
 	/**
 	 * Dispatches a request through the REST server.
 	 *
