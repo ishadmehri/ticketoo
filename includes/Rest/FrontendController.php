@@ -635,10 +635,12 @@ class FrontendController {
 	 * attached files (`files[]`) and touches the ticket's activity
 	 * timestamps through MessageRepository::add().
 	 *
-	 * A non-agent reply to a closed ticket reopens it to `open` and fires
-	 * ticketoo_ticket_status_changed (the auto-close email's "Reply to
-	 * reopen" promise); agent replies leave the status untouched because
-	 * agents reopen through POST /tickets/{id}/status (spec § Close by user).
+	 * A non-agent reply to a `closed` or `answered` ticket moves it to `open`
+	 * and fires ticketoo_ticket_status_changed (the auto-close email's
+	 * "Reply to reopen" promise, and the Answered tab must not go stale);
+	 * `pending` stays agent-curated and agent replies leave the status
+	 * untouched because agents reopen through POST /tickets/{id}/status
+	 * (spec § Close by user).
 	 *
 	 * Every file is validated (type, option allow-list, size cap) before the
 	 * message is written, so one rejected file rejects the whole request
@@ -695,7 +697,7 @@ class FrontendController {
 
 		$ticket_status = $ticket->status;
 
-		if ( 'closed' === $ticket_status && 0 === $is_agent ) {
+		if ( in_array( $ticket_status, array( 'closed', 'answered' ), true ) && 0 === $is_agent ) {
 			if ( ! TicketRepository::update_status( $ticket->id, 'open' ) ) {
 				return new WP_Error(
 					'ticketoo_rest_reopen_failed',
@@ -707,15 +709,16 @@ class FrontendController {
 			$ticket_status = 'open';
 
 			/**
-			 * Fires after a reply reopened a closed ticket (spec § Close by
-			 * user: the auto-close email promises "Reply to reopen").
+			 * Fires after a reply moved a closed or answered ticket back to
+			 * open (spec § Close by user: the auto-close email promises
+			 * "Reply to reopen").
 			 *
 			 * @since 0.1.0
 			 * @param int    $ticket_id  Ticket id.
 			 * @param string $old_status Status slug before the change.
 			 * @param string $new_status Status slug after the change.
 			 */
-			do_action( 'ticketoo_ticket_status_changed', (int) $ticket->id, 'closed', 'open' );
+			do_action( 'ticketoo_ticket_status_changed', (int) $ticket->id, $ticket->status, 'open' );
 		}
 
 		/**

@@ -776,7 +776,7 @@
 		messages.appendChild( messageNode( json ) );
 
 		// The reply payload carries the post-reply status: a customer reply
-		// to a closed ticket reopens it server-side, so refresh the chip.
+		// can move the ticket back to open server-side, so refresh the chip.
 		var status = json && 'string' === typeof json.ticket_status && '' !== json.ticket_status ? json.ticket_status : '';
 
 		if ( '' !== status ) {

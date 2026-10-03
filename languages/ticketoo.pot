@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-01T18:20:52+00:00\n"
+"POT-Creation-Date: 2026-10-03T11:36:00+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: ticketoo\n"
@@ -111,7 +111,7 @@ msgid "The ticket status has been updated."
 msgstr ""
 
 #: includes/Admin/MenuPage.php:139
-#: includes/Admin/SettingsPage.php:336
+#: includes/Admin/SettingsPage.php:344
 msgid "You are not allowed to access this page."
 msgstr ""
 
@@ -166,91 +166,91 @@ msgid "Loading tickets…"
 msgstr ""
 
 #: includes/Admin/MenuPage.php:236
-#: includes/Rest/FrontendController.php:1094
-#: includes/Shortcode/TicketooShortcode.php:477
+#: includes/Rest/FrontendController.php:1130
+#: includes/Shortcode/TicketooShortcode.php:478
 msgid "Open"
 msgstr ""
 
 #: includes/Admin/MenuPage.php:237
-#: includes/Rest/FrontendController.php:1095
-#: includes/Shortcode/TicketooShortcode.php:478
+#: includes/Rest/FrontendController.php:1131
+#: includes/Shortcode/TicketooShortcode.php:479
 msgid "Pending"
 msgstr ""
 
 #: includes/Admin/MenuPage.php:238
-#: includes/Rest/FrontendController.php:1096
-#: includes/Shortcode/TicketooShortcode.php:479
+#: includes/Rest/FrontendController.php:1132
+#: includes/Shortcode/TicketooShortcode.php:480
 msgid "Answered"
 msgstr ""
 
 #: includes/Admin/MenuPage.php:239
-#: includes/Rest/FrontendController.php:1097
-#: includes/Shortcode/TicketooShortcode.php:480
+#: includes/Rest/FrontendController.php:1133
+#: includes/Shortcode/TicketooShortcode.php:481
 msgid "Closed"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:99
-#: includes/Admin/SettingsPage.php:100
+#: includes/Admin/SettingsPage.php:107
+#: includes/Admin/SettingsPage.php:108
 msgid "Settings"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:341
+#: includes/Admin/SettingsPage.php:349
 msgid "Ticketoo Settings"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:350
+#: includes/Admin/SettingsPage.php:360
 msgid "Auto-close after (days)"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:351
+#: includes/Admin/SettingsPage.php:361
 msgid "Idle open or pending tickets are closed after this many days. 0 disables auto-close."
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:360
+#: includes/Admin/SettingsPage.php:370
 msgid "Attachment size limit (MB)"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:361
+#: includes/Admin/SettingsPage.php:371
 msgid "Uploads larger than this are rejected; the maximum accepted value is 100."
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:371
+#: includes/Admin/SettingsPage.php:381
 msgid "Allowed attachment types"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:372
+#: includes/Admin/SettingsPage.php:382
 msgid "Comma-separated file extensions, e.g. jpg,png,pdf."
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:380
+#: includes/Admin/SettingsPage.php:390
 msgid "Sender name"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:381
+#: includes/Admin/SettingsPage.php:391
 msgid "Name shown on notification emails. Leave empty to use the site name."
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:385
+#: includes/Admin/SettingsPage.php:395
 msgid "Sender email"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:386
+#: includes/Admin/SettingsPage.php:396
 msgid "Address notification emails are sent from. Leave empty to use the site address."
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:393
+#: includes/Admin/SettingsPage.php:403
 msgid "Allow guest tickets"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:406
+#: includes/Admin/SettingsPage.php:416
 msgid "Visitors without an account can open tickets."
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:413
+#: includes/Admin/SettingsPage.php:423
 msgid "Counter refresh (seconds)"
 msgstr ""
 
-#: includes/Admin/SettingsPage.php:414
+#: includes/Admin/SettingsPage.php:424
 msgid "How often the panel refreshes its new-ticket counter. 0 disables polling."
 msgstr ""
 
@@ -309,178 +309,182 @@ msgstr ""
 msgid "Ticket #%d has been closed"
 msgstr ""
 
-#: includes/Rest/FrontendController.php:61
+#: includes/Rest/FrontendController.php:62
 msgid "Filter by status slug."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:65
+#: includes/Rest/FrontendController.php:66
 msgid "Match this text against the subject."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:69
+#: includes/Rest/FrontendController.php:70
 msgid "Page number, 1-based."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:75
+#: includes/Rest/FrontendController.php:76
 msgid "Page size; capped at 100."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:81
+#: includes/Rest/FrontendController.php:82
 msgid "mine (default) or all (agents only)."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:94
+#: includes/Rest/FrontendController.php:95
 msgid "Ticket subject."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:99
+#: includes/Rest/FrontendController.php:100
 msgid "First message body."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:104
+#: includes/Rest/FrontendController.php:105
 msgid "Guest display name."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:108
+#: includes/Rest/FrontendController.php:109
 msgid "Contact email address."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:128
-#: includes/Rest/FrontendController.php:152
+#: includes/Rest/FrontendController.php:129
+#: includes/Rest/FrontendController.php:153
 msgid "Guest bearer token for this ticket."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:147
+#: includes/Rest/FrontendController.php:148
 msgid "Reply body."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:171
+#: includes/Rest/FrontendController.php:172
 msgid "New status slug; must exist in the ticketoo_statuses list."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:191
+#: includes/Rest/FrontendController.php:192
 msgid "Agent user id to assign the ticket to, or 0 to unassign."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:211
+#: includes/Rest/FrontendController.php:212
 msgid "Guest bearer token for the ticket this attachment belongs to."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:229
+#: includes/Rest/FrontendController.php:230
 msgid "You must be logged in to list tickets."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:237
-#: includes/Rest/FrontendController.php:430
+#: includes/Rest/FrontendController.php:238
+#: includes/Rest/FrontendController.php:431
 msgid "Sorry, you are not allowed to list every ticket."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:258
+#: includes/Rest/FrontendController.php:259
 msgid "Guest ticket creation is disabled."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:288
-#: includes/Rest/FrontendController.php:381
+#: includes/Rest/FrontendController.php:289
+#: includes/Rest/FrontendController.php:382
 msgid "A valid ticket token is required."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:324
+#: includes/Rest/FrontendController.php:325
 msgid "Guests cannot change the ticket status."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:350
+#: includes/Rest/FrontendController.php:351
 msgid "Sorry, you are not allowed to assign tickets."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:493
+#: includes/Rest/FrontendController.php:494
 msgid "A subject is required."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:503
-#: includes/Rest/FrontendController.php:659
+#: includes/Rest/FrontendController.php:504
+#: includes/Rest/FrontendController.php:668
 msgid "A message is required."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:514
+#: includes/Rest/FrontendController.php:515
 msgid "A valid email address is required."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:539
-#: includes/Rest/FrontendController.php:549
-#: includes/Rest/FrontendController.php:559
+#: includes/Rest/FrontendController.php:540
+#: includes/Rest/FrontendController.php:550
+#: includes/Rest/FrontendController.php:560
 msgid "The ticket could not be created."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:684
+#: includes/Rest/FrontendController.php:693
 msgid "The reply could not be saved."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:708
+#: includes/Rest/FrontendController.php:704
+msgid "The ticket could not be reopened."
+msgstr ""
+
+#: includes/Rest/FrontendController.php:743
 msgid "The attachment could not be stored."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:752
+#: includes/Rest/FrontendController.php:788
 msgid "Unknown ticket status."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:760
+#: includes/Rest/FrontendController.php:796
 msgid "You may only close your own ticket; agents may set any status."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:771
+#: includes/Rest/FrontendController.php:807
 msgid "The ticket status could not be updated."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:821
+#: includes/Rest/FrontendController.php:857
 msgid "A positive user id, or 0 to unassign, is required."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:832
+#: includes/Rest/FrontendController.php:868
 msgid "The requested user does not exist."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:845
+#: includes/Rest/FrontendController.php:881
 msgid "Tickets can only be assigned to support agents or administrators."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:870
+#: includes/Rest/FrontendController.php:906
 msgid "The ticket could not be assigned."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:1168
+#: includes/Rest/FrontendController.php:1193
 msgid "This file type is not allowed."
 msgstr ""
 
 #. translators: %d: Maximum attachment size in megabytes.
-#: includes/Rest/FrontendController.php:1184
+#: includes/Rest/FrontendController.php:1209
 msgid "Attachments must not exceed %d MB."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:1471
+#: includes/Rest/FrontendController.php:1496
 msgid "The upload could not be processed."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:1529
+#: includes/Rest/FrontendController.php:1553
 msgid "Ticket not found."
 msgstr ""
 
-#: includes/Rest/FrontendController.php:1545
+#: includes/Rest/FrontendController.php:1569
 msgid "Attachment not found."
 msgstr ""
 
-#: includes/Shortcode/TicketooShortcode.php:269
+#: includes/Shortcode/TicketooShortcode.php:270
 msgid "Please log in to view your tickets."
 msgstr ""
 
-#: includes/Shortcode/TicketooShortcode.php:316
+#: includes/Shortcode/TicketooShortcode.php:317
 msgid "Guest ticket creation is disabled. Please log in to open a ticket."
 msgstr ""
 
-#: includes/Shortcode/TicketooShortcode.php:337
+#: includes/Shortcode/TicketooShortcode.php:338
 msgid "This ticket link is invalid or has expired."
 msgstr ""
 
-#: includes/Shortcode/TicketooShortcode.php:341
+#: includes/Shortcode/TicketooShortcode.php:342
 msgid "You are not allowed to view this ticket. Use the link from your email or log in."
 msgstr ""
 

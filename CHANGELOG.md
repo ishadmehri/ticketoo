@@ -30,9 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generated `languages/ticketoo.pot`.
 - Uninstall routine dropping plugin tables, role, capability, options and the
   scheduled cron event; `readme.txt` and this changelog.
-- Reply-to-reopen: a customer reply to a closed ticket reopens it to `open`
-  and fires `ticketoo_ticket_status_changed`; the reply payload carries
-  `ticket_status` so the conversation badge updates live.
+- Reply-to-reopen: a customer reply moves a closed or answered ticket back
+  to `open` and fires `ticketoo_ticket_status_changed`; the reply payload
+  carries `ticket_status` so the conversation badge updates live.
 - RTL-ready stylesheets through CSS logical properties only, guarded by
   `tests/test-rtl-css.php`; no separate `-rtl.css` mirrors are shipped.
 

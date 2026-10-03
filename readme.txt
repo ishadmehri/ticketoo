@@ -26,8 +26,8 @@ builder and no external service:
   settings screen (auto-close window, attachment limits, sender name and
   email, guest tickets, live counter refresh).
 * Daily automatic closing of inactive tickets on WP-Cron. A reply from the
-  customer reopens a closed ticket (the auto-close email's promise); agent
-  replies leave the status alone.
+  customer reopens a closed or answered ticket (the auto-close email's
+  promise); agent replies leave the status alone.
 * Three Gutenberg blocks (Ticketoo Ticket List, Ticketoo New Ticket Form,
   Ticketoo Conversation) and an optional Elementor widget — all rendering
   the same shortcode.

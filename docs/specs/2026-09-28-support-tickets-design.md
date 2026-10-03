@@ -186,7 +186,7 @@ Template `templates/email/default.php` with `{{vars}}`; filters `ticketoo_email_
 
 **Close by user:** close button for the owner (while open); agents can reopen. Action `ticketoo_ticket_status_changed` after every change.
 
-**Reply to reopen:** a reply from the owner or a guest to a `closed` ticket reopens it to `open` (fires `ticketoo_ticket_status_changed`; the reply payload carries `ticket_status`). Agent replies leave the status untouched — agents reopen through the status route.
+**Reply to reopen:** a reply from the owner or a guest moves a `closed` or `answered` ticket back to `open` (fires `ticketoo_ticket_status_changed`; the reply payload carries `ticket_status`). `pending` stays agent-curated; agent replies leave the status untouched — agents reopen through the status route.
 
 ## 8. Security
 
